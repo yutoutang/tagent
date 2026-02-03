@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "description": "软件开发生命周期意图定义",
+  "intents": [
+    {
+      "id": "study",
+      "name": "学习",
+      "description": "学习新技术、框架或概念",
+      "category": "workflow",
+      "pre_intents": [],
+      "post_intents": ["develop"],
+      "guidance": {
+        "entry": "欢迎开始学习！建议先阅读官方文档，了解基础概念。",
+        "completion": "学习完成！下一步可以进入开发阶段，将所学知识应用到实际项目中。",
+        "next_actions": [
+          "开始开发项目",
+          "查看更多学习资源",
+          "练习所学知识"
+        ]
+      }
+    },
+    {
+      "id": "develop",
+      "name": "开发",
+      "description": "进行软件开发和编码工作",
+      "category": "workflow",
+      "pre_intents": ["study"],
+      "post_intents": ["test", "deploy"],
+      "guidance": {
+        "entry": "开始开发阶段！确保代码质量和规范，建议使用版本控制。",
+        "completion": "开发完成！接下来需要进行测试确保功能正常，也可以准备部署。",
+        "next_actions": [
+          "运行测试",
+          "准备部署",
+          "代码审查"
+        ]
+      }
+    },
+    {
+      "id": "test",
+      "name": "测试",
+      "description": "进行功能测试和质量保证",
+      "category": "workflow",
+      "pre_intents": ["develop"],
+      "post_intents": [],
+      "guidance": {
+        "entry": "进入测试阶段！建议编写单元测试和集成测试，确保功能正确性。",
+        "completion": "测试完成！如果测试通过，可以准备部署到生产环境。",
+        "next_actions": [
+          "准备部署",
+          "修复发现的问题",
+          "生成测试报告"
+        ]
+      }
+    },
+    {
+      "id": "deploy",
+      "name": "上架",
+      "description": "将应用部署到生产环境",
+      "category": "workflow",
+      "pre_intents": ["develop"],
+      "post_intents": ["maintain"],
+      "guidance": {
+        "entry": "准备部署！确保环境配置正确，备份重要数据。",
+        "completion": "部署成功！应用已上线，后续进入运维阶段进行监控和维护。",
+        "next_actions": [
+          "开始运维监控",
+          "查看部署日志",
+          "通知用户更新"
+        ]
+      }
+    },
+    {
+      "id": "maintain",
+      "name": "运维",
+      "description": "系统运维和持续监控",
+      "category": "workflow",
+      "pre_intents": ["deploy"],
+      "post_intents": [],
+      "guidance": {
+        "entry": "进入运维阶段！建立监控告警机制，及时处理问题。",
+        "completion": "运维任务完成。建议定期检查系统状态，收集用户反馈。",
+        "next_actions": [
+          "收集用户反馈",
+          "规划新版本",
+          "优化系统性能"
+        ]
+      }
+    }
+  ]
+}

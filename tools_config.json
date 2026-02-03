@@ -1,0 +1,40 @@
+{
+  "tools": [
+    {
+      "name": "code_analyzer",
+      "module": "dynamic_agent_framework",
+      "task_types": ["coding", "analysis"],
+      "enabled": true,
+      "config": {
+        "max_lines": 1000,
+        "languages": ["python", "javascript", "typescript", "java", "go"]
+      }
+    },
+    {
+      "name": "web_searcher",
+      "module": "dynamic_agent_framework",
+      "task_types": ["research", "general"],
+      "enabled": true,
+      "config": {
+        "max_results": 10,
+        "timeout": 30
+      }
+    },
+    {
+      "name": "data_calculator",
+      "module": "dynamic_agent_framework",
+      "task_types": ["calculation", "analysis"],
+      "enabled": true,
+      "config": {
+        "safe_mode": true,
+        "timeout": 5
+      }
+    }
+  ],
+  "tool_groups": {
+    "coding": ["code_analyzer", "api_client"],
+    "research": ["web_searcher", "document_summarizer"],
+    "analysis": ["data_calculator", "code_analyzer", "document_summarizer"],
+    "calculation": ["data_calculator"]
+  }
+}

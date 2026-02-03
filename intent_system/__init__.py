@@ -37,13 +37,13 @@ from intent_system.core.intent_parser import IntentParser, IntentParseResult
 from intent_system.core.state import EnhancedAgentState
 
 # 编排模块
-from intent_system.orchestration import IntentOrchestrator
+from intent_system.orchestration.orchestrator import IntentOrchestrator
 
 # 执行模块
-from intent_system.execution import IntentExecutor
+from intent_system.execution.intent_executor import IntentExecutor
 
 # 数据流转模块
-from intent_system.data_flow import DataFlowEngine
+from intent_system.data_flow.data_flow_engine import DataFlowEngine
 
 # 工作流模块
 from intent_system.workflow import (
@@ -54,7 +54,14 @@ from intent_system.workflow import (
 )
 
 # 内置意图
-from intent_system.builtin_intents import register_builtin_data_intents
+from intent_system.builtin_intents.data_intents import register_builtin_data_intents
+
+# YAgent 模块
+from intent_system.yagent import (
+    YAgentState,
+    YAgent,
+    create_yagent_graph
+)
 
 __all__ = [
     # 版本
@@ -86,4 +93,9 @@ __all__ = [
 
     # 内置意图
     "register_builtin_data_intents",
+
+    # YAgent
+    "YAgentState",
+    "YAgent",
+    "create_yagent_graph",
 ]

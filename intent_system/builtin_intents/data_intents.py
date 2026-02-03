@@ -3,7 +3,6 @@
 """
 
 from typing import Any, Dict
-from langchain_core.tools import tool
 from intent_system.core.intent_definition import IntentDefinition, IntentMetadata, InputOutputSchema
 from intent_system.core.intent_registry import IntentRegistry
 
@@ -12,7 +11,6 @@ from intent_system.core.intent_registry import IntentRegistry
 # 内置工具函数
 # ============================================================
 
-@tool
 async def builtin_http_request(url: str, method: str = "GET") -> Dict[str, Any]:
     """
     HTTP 请求工具
@@ -36,7 +34,6 @@ async def builtin_http_request(url: str, method: str = "GET") -> Dict[str, Any]:
     }
 
 
-@tool
 async def builtin_calculator(expression: str) -> float:
     """
     计算器工具 - 计算数学表达式
@@ -55,7 +52,6 @@ async def builtin_calculator(expression: str) -> float:
         raise ValueError(f"计算错误: {str(e)}")
 
 
-@tool
 async def builtin_web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
     """
     网络搜索工具
@@ -84,7 +80,6 @@ async def builtin_web_search(query: str, max_results: int = 5) -> Dict[str, Any]
     }
 
 
-@tool
 async def builtin_data_analysis(data: Any, analysis_type: str = "summary") -> Dict[str, Any]:
     """
     数据分析工具
@@ -128,7 +123,6 @@ async def builtin_data_analysis(data: Any, analysis_type: str = "summary") -> Di
         }
 
 
-@tool
 async def builtin_text_processing(
     text: str,
     operation: str = "count"
@@ -196,7 +190,7 @@ def get_http_request_intent() -> IntentDefinition:
                 }
             }
         ),
-        executor=builtin_http_request.func
+        executor=builtin_http_request
     )
 
 
@@ -227,7 +221,7 @@ def get_calculator_intent() -> IntentDefinition:
                 }
             }
         ),
-        executor=builtin_calculator.func
+        executor=builtin_calculator
     )
 
 
@@ -263,7 +257,7 @@ def get_web_search_intent() -> IntentDefinition:
                 }
             }
         ),
-        executor=builtin_web_search.func
+        executor=builtin_web_search
     )
 
 
@@ -299,7 +293,7 @@ def get_data_analysis_intent() -> IntentDefinition:
                 }
             }
         ),
-        executor=builtin_data_analysis.func
+        executor=builtin_data_analysis
     )
 
 
@@ -335,7 +329,7 @@ def get_text_processing_intent() -> IntentDefinition:
                 }
             }
         ),
-        executor=builtin_text_processing.func
+        executor=builtin_text_processing
     )
 
 

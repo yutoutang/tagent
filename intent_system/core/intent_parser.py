@@ -135,11 +135,24 @@ class IntentParser:
 """
 
         try:
-            # 调用 LLM 进行结构化解析
-            result = self.parser.invoke([
+            # 使用流式调用 LLM 进行结构化解析
+            print(f"\n[LLM 调用] 意图解析: {user_input[:50]}...")
+
+            # 流式获取响应
+            chunks = []
+            for chunk in self.parser.stream([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_input)
-            ])
+            ]):
+                chunks.append(chunk)
+                # 输出流式进度
+                if hasattr(chunk, 'content'):
+                    print(f"[流式输出] {chunk.content[:100] if len(chunk.content) > 100 else chunk.content}")
+
+            # 获取最终结果
+            result = chunks[-1] if chunks else None
+            if result:
+                print(f"[LLM 完成] 识别意图: {result.primary_intent}, 置信度: {result.confidence:.2f}")
 
             # 验证识别的意图是否存在
             validated_result = self._validate_result(result)
@@ -147,6 +160,7 @@ class IntentParser:
             return validated_result
 
         except Exception as e:
+            print(f"[LLM 错误] {str(e)}")
             # 降级处理：返回基础解析结果
             return self._fallback_parse(user_input, str(e))
 

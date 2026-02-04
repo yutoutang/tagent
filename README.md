@@ -23,6 +23,8 @@
 ```
 tagent/
 ├── README.md                    # 本文档
+├── CLI_GUIDE.md                 # CLI 使用指南
+├── cli_demo.py                  # 🎉 交互式命令行工具
 ├── pyproject.toml              # 项目配置
 ├── requirements.txt            # 依赖列表
 ├── examples/                   # 示例代码
@@ -72,13 +74,43 @@ tagent/
 
 ## 快速开始
 
-### 1. 安装依赖
+### 🎉 方式 1：使用交互式 CLI（推荐）
+
+直接运行 CLI demo，体验交互式意图识别：
+
+```bash
+python cli_demo.py
+```
+
+**功能特性**：
+- 🎯 智能意图识别
+- 💬 多轮对话支持
+- 📊 实时执行反馈
+- 📝 历史记录管理
+- 🎨 美化的终端界面
+
+**使用示例**：
+```
+You> 帮我计算 25 * 4 + 10
+✓ 检测到意图: calculator (95% 置信度)
+结果: 110
+
+You> 将结果转换为大写
+✓ 检测到意图: text_processing
+结果: ONE HUNDRED TEN
+```
+
+详细使用说明请查看 [CLI_GUIDE.md](CLI_GUIDE.md)
+
+### 方式 2：编程方式使用
+
+#### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+##### 2. 配置环境变量
 
 创建 `.env` 文件：
 
@@ -100,7 +132,7 @@ MODEL_NAME=gpt-4o
 # BASE_URL=https://api.deepseek.com
 ```
 
-### 3. 基本使用
+#### 3. 基本使用（编程方式）
 
 #### 使用 YAgent（推荐）
 

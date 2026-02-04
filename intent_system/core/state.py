@@ -4,16 +4,7 @@
 
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-
-# 导入现有的 AgentState
-import sys
-from pathlib import Path
-
-# 添加项目根目录到路径
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from dynamic_agent_framework import AgentState
+from langchain_core.messages import BaseMessage
 
 
 class IntentExecutionTrace(BaseModel):
@@ -79,12 +70,62 @@ class IntentOrchestrationPlan(BaseModel):
         return len(self.execution_layers)
 
 
-class EnhancedAgentState(AgentState):
+class EnhancedAgentState(BaseModel):
     """
     增强的 Agent 状态 - 扩展现有 AgentState
 
     在原有状态基础上添加意图管理相关字段
     """
+
+    # ========== 基础字段（原 AgentState 字段）==========
+    messages: List[BaseMessage] = Field(
+        default_factory=list,
+        description="对话历史消息"
+    )
+    task_type: Optional[str] = Field(
+        default=None,
+        description="任务类型"
+    )
+    task_confidence: Optional[float] = Field(
+        default=None,
+        description="任务分类置信度"
+    )
+    available_tools: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="可用工具列表"
+    )
+    executed_tools: List[str] = Field(
+        default_factory=list,
+        description="已执行的工具列表"
+    )
+    result: Optional[str] = Field(
+        default=None,
+        description="最终执行结果"
+    )
+    intermediate_steps: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="中间执行步骤"
+    )
+    iteration: int = Field(
+        default=0,
+        description="当前迭代次数"
+    )
+    max_iterations: int = Field(
+        default=3,
+        description="最大迭代次数"
+    )
+    is_complete: bool = Field(
+        default=False,
+        description="是否完成"
+    )
+    errors: List[str] = Field(
+        default_factory=list,
+        description="错误列表"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="元数据"
+    )
 
     # ========== 意图识别相关 ==========
     detected_intents: List[str] = Field(
@@ -133,6 +174,9 @@ class EnhancedAgentState(AgentState):
         default=False,
         description="意图执行是否完成"
     )
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def add_execution_trace(self, trace: IntentExecutionTrace) -> None:
         """添加执行追踪记录"""

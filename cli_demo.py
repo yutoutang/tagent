@@ -13,7 +13,7 @@ Intent System 交互式 CLI 命令行工具
 import os
 import sys
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -48,6 +48,34 @@ class IntentCLI:
         self.session_id = None
         self.history = []
         self.running = True
+
+    @staticmethod
+    def sanitize_string(text: Any) -> str:
+        """
+        清理字符串，移除可能导致编码错误的字符
+
+        Args:
+            text: 输入文本（可以是任何类型）
+
+        Returns:
+            安全的字符串
+        """
+        if text is None:
+            return ""
+
+        # 转为字符串
+        text = str(text)
+
+        # 移除 surrogate 字符和其他非法字符
+        # 方法：编码为 utf-8，忽略错误，再解码回来
+        try:
+            # 尝试直接编码
+            text.encode('utf-8')
+            return text
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            # 如果失败，使用错误处理
+            cleaned = text.encode('utf-8', errors='ignore').decode('utf-8')
+            return cleaned
 
     def print_banner(self):
         """打印欢迎横幅"""
@@ -139,7 +167,8 @@ class IntentCLI:
         print(f"\n{Colors.BOLD}{Colors.HEADER}=== 对话历史 ({len(self.history)} 条) ==={Colors.ENDC}\n")
 
         for i, item in enumerate(self.history, 1):
-            print(f"{Colors.OKCYAN}[{i}]{Colors.ENDC} {Colors.BOLD}用户:{Colors.ENDC} {item['query']}")
+            query = self.sanitize_string(item['query'])
+            print(f"{Colors.OKCYAN}[{i}]{Colors.ENDC} {Colors.BOLD}用户:{Colors.ENDC} {query}")
             if item.get('result'):
                 result = item['result']
                 success = result.get('success', False)
@@ -154,13 +183,14 @@ class IntentCLI:
 
                     output = result.get('result')
                     if output:
-                        # 截断过长的输出
-                        if len(str(output)) > 200:
-                            output = str(output)[:200] + "..."
+                        # 清理并截断过长的输出
+                        output = self.sanitize_string(output)
+                        if len(output) > 200:
+                            output = output[:200] + "..."
                         print(f"    {Colors.OKGREEN}结果:{Colors.ENDC} {output}")
                 else:
                     error = result.get('error', '未知错误')
-                    print(f"    {Colors.FAIL}错误:{Colors.ENDC} {error}")
+                    print(f"    {Colors.FAIL}错误:{Colors.ENDC} {self.sanitize_string(error)}")
 
             print()
 
@@ -261,7 +291,9 @@ class IntentCLI:
             if output:
                 print(f"\n{Colors.BOLD}{Colors.OKGREEN}结果:{Colors.ENDC}")
                 print(f"{Colors.OKGREEN}{'─' * 60}{Colors.ENDC}")
-                print(output)
+                # 清理输出字符串，避免编码错误
+                cleaned_output = self.sanitize_string(output)
+                print(cleaned_output)
                 print(f"{Colors.OKGREEN}{'─' * 60}{Colors.ENDC}")
 
             # 执行摘要
@@ -277,13 +309,13 @@ class IntentCLI:
             print(f"{Colors.FAIL}✗ 执行失败{Colors.ENDC}\n")
 
             error = result.get('error', '未知错误')
-            print(f"{Colors.FAIL}错误信息:{Colors.ENDC} {error}")
+            print(f"{Colors.FAIL}错误信息:{Colors.ENDC} {self.sanitize_string(error)}")
 
             errors = result.get('errors', [])
             if errors:
                 print(f"\n{Colors.FAIL}详细错误:{Colors.ENDC}")
                 for err in errors:
-                    print(f"  - {err}")
+                    print(f"  - {self.sanitize_string(err)}")
 
         print()
 

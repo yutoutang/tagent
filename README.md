@@ -1,47 +1,76 @@
-# 动态 Agent 调用框架
+# Intent System - 智能意图管理系统
 
-基于 LangGraph 实现的智能 agent 调用框架，支持动态任务识别、工具加载和多 agent 协作。
+基于 LangGraph 实现的智能意图管理系统，支持动态意图识别、DAG 编排和并行执行。设计灵感来源于 Dify 和 n8n。
 
-## 🌟 核心特性
+## 核心特性
 
-### 1. 动态任务识别
-- **智能分类**: 自动识别任务类型（编程、研究、分析、计算等）
-- **置信度评估**: 对分类结果进行置信度评分
-- **LLM 驱动**: 使用大语言模型进行语义理解
+### 1. 意图识别与编排
+- **LLM 驱动**: 使用大语言模型智能识别用户意图
+- **DAG 编排**: 自动构建有向无环图，处理意图依赖关系
+- **并行执行**: 同层意图并行执行，提升效率
 
-### 2. 动态工具加载
-- **工具注册系统**: 灵活的工具注册与管理机制
-- **按需加载**: 根据任务类型自动加载相关工具
-- **扩展性强**: 轻松添加自定义工具
+### 2. 数据流转
+- **n8n 风格表达式**: 支持 `{{ $json.field }}` 语法引用前序结果
+- **上下文管理**: 自动维护意图间的数据流转
 
-### 3. 多阶段执行流程
-- **分类 → 规划 → 执行 → 反思 → 综合**
-- 支持迭代优化
-- 自动判断任务完成状态
+### 3. YAgent 统一框架
+- **5 阶段流程**: 解析 → 编排 → 执行 → 反思 → 综合
+- **多轮对话**: 基于 LangGraph 的状态管理
+- **迭代优化**: 自动判断是否需要继续执行
 
-### 4. 状态管理
-- 基于 LangGraph 的状态管理
-- 支持多轮对话
-- 持久化会话支持
-
-### 5. 错误处理
-- 完善的错误捕获与报告
-- 最大迭代次数限制
-- 优雅降级
-
-## 📁 项目结构
+## 项目结构
 
 ```
-agent-f/
-├── dynamic_agent_framework.py   # 主框架实现
-├── test_agent.py                 # 测试套件
-├── tools_config.json             # 工具配置文件
-├── requirements.txt              # Python 依赖
-├── .env.example                  # 环境变量示例
-└── README.md                     # 本文档
+tagent/
+├── README.md                    # 本文档
+├── pyproject.toml              # 项目配置
+├── requirements.txt            # 依赖列表
+├── examples/                   # 示例代码
+│   ├── custom_intent.py               # 自定义意图
+│   ├── external_project_usage.py      # 外部项目集成
+│   ├── intent_basic_usage.py          # 基础用法
+│   ├── sdlc_workflow_y_agent.py       # SDLC 工作流示例
+│   ├── test_sdlc_with_config.py       # 配置测试
+│   ├── unified_agent_demo.py          # YAgent 演示
+│   ├── workflow_example.py            # 工作流示例
+│   ├── workflow_intent_engine.py      # 意图引擎
+│   ├── workflow_intents.json          # 工作流定义
+│   ├── workflow_system_example.py     # 系统示例
+│   └── workflow_with_agent.py         # Agent + 工作流
+└── intent_system/              # 核心代码
+    ├── __init__.py
+    ├── builtin_intents/        # 内置意图
+    │   ├── __init__.py
+    │   └── data_intents.py             # 数据处理意图
+    ├── core/                   # 核心模块
+    │   ├── intent_definition.py        # 意图定义
+    │   ├── intent_parser.py            # 意图解析
+    │   ├── intent_registry.py          # 意图注册
+    │   └── state.py                    # 状态定义
+    ├── data_flow/              # 数据流引擎
+    │   ├── __init__.py
+    │   └── data_flow_engine.py         # 数据流转
+    ├── execution/               # 执行器
+    │   ├── __init__.py
+    │   ├── intent_executor.py          # 意图执行
+    │   └── execution_tracker.py        # 执行追踪
+    ├── orchestration/          # 编排器
+    │   ├── __init__.py
+    │   └── orchestrator.py             # DAG 编排
+    ├── workflow/               # 工作流
+    │   ├── __init__.py
+    │   ├── json_loader.py              # JSON 加载
+    │   ├── workflow_intent.py          # 工作流意图
+    │   └── workflow_manager.py         # 工作流管理
+    └── yagent/                 # YAgent
+        ├── __init__.py
+        ├── agent.py                    # Agent 类
+        ├── graph.py                    # 计算图
+        ├── nodes.py                    # 节点实现
+        └── state.py                    # 状态定义
 ```
 
-## 🚀 快速开始
+## 快速开始
 
 ### 1. 安装依赖
 
@@ -51,331 +80,216 @@ pip install -r requirements.txt
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env` 并填入你的 API Key：
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件：
+创建 `.env` 文件：
 
 ```env
+# OpenAI
 OPENAI_API_KEY=your-openai-api-key
-# 或者使用 Anthropic
-ANTHROPIC_API_KEY=your-anthropic-api-key
 LLM_PROVIDER=openai
 MODEL_NAME=gpt-4o
+
+# 或使用 Anthropic
+# ANTHROPIC_API_KEY=your-anthropic-api-key
+# LLM_PROVIDER=anthropic
+# MODEL_NAME=claude-3-5-sonnet-20241022
+
+# 或使用 DeepSeek
+# OPENAI_API_KEY=your-deepseek-api-key
+# LLM_PROVIDER=openai
+# MODEL_NAME=deepseek-chat
+# BASE_URL=https://api.deepseek.com
 ```
 
 ### 3. 基本使用
 
+#### 使用 YAgent（推荐）
+
 ```python
-from dotenv import load_dotenv
-from dynamic_agent_framework import DynamicAgent
+from intent_system import YAgent
 
-# 加载环境变量
-load_dotenv()
+# 创建 Agent
+agent = YAgent()
 
-# 创建 agent
-agent = DynamicAgent()
+# 运行
+result = agent.run("帮我搜索 Python LangGraph 教程")
 
-# 简单对话
-result = agent.chat("帮我计算 25 * 4")
-print(result)
-
-# 或者获取完整结果
-response = agent.run("搜索 Python 异步编程资料")
-print(f"任务类型: {response['task_type']}")
-print(f"执行结果: {response['result']}")
-print(f"中间步骤: {response['intermediate_steps']}")
+print(f"成功: {result['success']}")
+print(f"结果: {result['result']}")
 ```
 
-### 4. 自定义工具
+#### 自定义配置
 
 ```python
-from langchain_core.tools import tool
+from intent_system import YAgent
 
-# 定义自定义工具
-@tool
-def my_custom_tool(param: str) -> str:
-    """自定义工具的描述"""
-    return f"处理结果: {param}"
-
-# 注册工具
-agent = DynamicAgent()
-agent.register_tool(
-    "my_custom_tool",
-    my_custom_tool,
-    {
-        "task_types": ["coding", "research"],
-        "description": "我的自定义工具"
-    }
+# 使用 DeepSeek
+agent = YAgent(
+    api_key="sk-xxx",
+    base_url="https://api.deepseek.com",
+    model_name="deepseek-chat"
 )
 
-# 使用 agent
-result = agent.chat("使用我的自定义工具处理 xxx")
+result = agent.run("你的查询")
 ```
 
-## 🏗️ 架构设计
+#### 使用意图系统
 
-### 计算图结构
-
-```
-    ┌─────────────┐
-    │   START     │
-    └──────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │  Classify   │  ← 任务识别与分类
-    └──────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │    Plan     │  ← 制定执行计划
-    └──────┬──────┘
-           │
-           ▼
-      ┌────────┐
-      │ Decide │  ← 决策路由
-      └───┬────┘
-          │
-    ┌─────┴─────┐
-    │           │
-    ▼           ▼
-┌─────────┐ ┌──────────┐
-│ Execute │ │ Synthesize│
-└────┬────┘ └──────────┘
-     │
-     ▼
-┌─────────┐
-│ Reflect │  ← 反思与评估
-└────┬────┘
-     │
-     ▼
-  ┌────┴─────┐
-  │  Decide  │  ← 继续或结束
-  └────┬─────┘
-       │
-       ▼
-    ┌────────┐
-    │   END  │
-    └────────┘
-```
-
-### 核心组件
-
-#### 1. ToolRegistry (工具注册表)
-- 管理所有可用工具
-- 支持按任务类型检索工具
-- 动态加载工具配置
-
-#### 2. AgentState (状态定义)
 ```python
-class AgentState(TypedDict):
-    messages: List[BaseMessage]          # 对话历史
-    task_type: Optional[str]             # 任务类型
-    task_confidence: Optional[float]     # 分类置信度
-    available_tools: List[Dict]          # 可用工具列表
-    executed_tools: List[str]            # 已执行工具
-    result: Optional[str]                # 最终结果
-    intermediate_steps: List[Dict]       # 中间步骤
-    iteration: int                       # 当前迭代
-    max_iterations: int                  # 最大迭代次数
-    is_complete: bool                    # 完成标志
-    errors: List[str]                    # 错误列表
-    metadata: Dict[str, Any]             # 元数据
+from intent_system import (
+    IntentRegistry,
+    IntentParser,
+    IntentOrchestrator,
+    IntentExecutor
+)
+from intent_system.builtin_intents import register_builtin_data_intents
+from langchain_openai import ChatOpenAI
+
+# 初始化
+registry = IntentRegistry()
+register_builtin_data_intents(registry)
+
+llm = ChatOpenAI(model="gpt-4o")
+parser = IntentParser(llm, registry)
+orchestrator = IntentOrchestrator(registry)
+executor = IntentExecutor(registry)
+
+# 解析意图
+result = parser.parse("帮我搜索今天的天气")
+
+# 编排
+plan = orchestrator.orchrate([result.primary_intent])
+
+# 执行
+final_result = executor.execute_plan(plan)
 ```
 
-#### 3. 节点 (Nodes)
+## 内置意图
 
-**task_classifier_node**
-- 使用 LLM 识别任务类型
-- 加载相关工具
-- 评估分类置信度
+| 意图 ID | 描述 | 参数 |
+|---------|------|------|
+| `http_request` | HTTP 请求 | url, method, headers, body |
+| `calculator` | 数学计算 | expression |
+| `web_search` | 网络搜索 | query, max_results |
+| `data_analysis` | 数据分析 | data, operation |
+| `text_processing` | 文本处理 | text, operation |
+| `file_read` | 文件读取 | file_path |
 
-**planner_node**
-- 分析可用工具
-- 制定执行计划
-- 确定执行顺序
+## 示例代码
 
-**executor_node**
-- 执行工具调用
-- 处理工具返回结果
-- 管理执行流程
-
-**reflector_node**
-- 评估当前结果
-- 决定是否继续
-- 防止无限循环
-
-**synthesizer_node**
-- 综合所有步骤
-- 生成最终答案
-- 格式化输出
-
-## 🧪 运行测试
+### 1. 基础意图使用
 
 ```bash
-python test_agent.py
+python examples/intent_basic_usage.py
 ```
 
-测试包括：
-1. 基本功能测试
-2. 自定义工具测试
-3. 多轮对话测试
-4. 流式输出测试
-5. 错误处理测试
-6. 工具列表测试
+### 2. 自定义意图
 
-## 📊 任务类型
-
-框架支持以下任务类型：
-
-| 类型 | 描述 | 相关工具 |
-|-----|------|---------|
-| `coding` | 编程、代码分析、开发 | code_analyzer, api_client |
-| `research` | 信息搜索、调研 | web_searcher, document_summarizer |
-| `analysis` | 数据分析、推理 | data_calculator, code_analyzer |
-| `calculation` | 数学计算 | data_calculator |
-| `general` | 一般对话 | 所有工具 |
-
-## 🔧 高级用法
-
-### 流式输出
-
-```python
-import asyncio
-
-async def stream_example():
-    agent = DynamicAgent()
-
-    async for event in agent.astream("搜索 LangGraph 教程"):
-        print(f"事件: {event}")
-
-asyncio.run(stream_example())
+```bash
+python examples/custom_intent.py
 ```
 
-### 自定义配置
+### 3. YAgent 演示
+
+```bash
+python examples/unified_agent_demo.py
+```
+
+### 4. 工作流示例
+
+```bash
+python examples/workflow_example.py
+```
+
+### 5. SDLC 工作流
+
+```bash
+python examples/sdlc_workflow_y_agent.py
+```
+
+## 高级用法
+
+### 自定义意图
 
 ```python
-custom_config = {
-    "configurable": {
-        "thread_id": "custom_session_123"
-    }
+from intent_system import IntentDefinition, IntentMetadata, InputOutputSchema
+from intent_system import YAgent
+
+async def my_tool(param: str) -> str:
+    """我的自定义工具"""
+    return f"处理结果: {param}"
+
+# 定义意图
+intent = IntentDefinition(
+    metadata=IntentMetadata(
+        id="my_tool",
+        name="我的工具",
+        description="自定义工具描述",
+        category="transform",
+        tags=["custom"]
+    ),
+    schema=InputOutputSchema(
+        inputs={
+            "param": {
+                "type": "string",
+                "description": "输入参数",
+                "required": True
+            }
+        },
+        outputs={"result": {"type": "string"}}
+    ),
+    executor=my_tool
+)
+
+# 注册并使用
+agent = YAgent()
+agent.register_intent(intent)
+result = agent.run("使用我的工具处理 xxx")
+```
+
+### 数据流表达式
+
+```python
+mapping = {
+    "temperature": "{{ $json.weather }}",
+    "city": "{{ $json.city_name }}"
 }
-
-agent = DynamicAgent(config=custom_config)
 ```
 
-### 多 agent 协作
+### 依赖关系
 
 ```python
-# 创建多个 agent 实例
-coder_agent = DynamicAgent()
-researcher_agent = DynamicAgent()
-
-# 串联使用
-research_result = researcher_agent.run("研究 Python 性能优化")
-code_suggestion = coder_agent.run(f"基于以下研究写代码: {research_result['result']}")
+metadata=IntentMetadata(
+    id="step2",
+    dependencies=["step1"]  # step1 完成后才能执行
+)
 ```
 
-## 🛠️ 内置工具
+## API 兼容性
 
-### code_analyzer
-- **功能**: 分析代码并提供建议
-- **参数**: `code` (代码), `language` (语言)
-- **任务类型**: coding, analysis
+支持以下 LLM 提供商：
 
-### web_searcher
-- **功能**: 搜索网络信息
-- **参数**: `query` (查询), `max_results` (结果数)
-- **任务类型**: research, general
+- ✅ OpenAI (GPT-4, GPT-3.5)
+- ✅ Anthropic (Claude 3.5 Sonnet)
+- ✅ DeepSeek (兼容 OpenAI API)
+- ✅ 其他兼容 OpenAI API 的服务
 
-### data_calculator
-- **功能**: 计算数学表达式
-- **参数**: `expression` (表达式)
-- **任务类型**: calculation, analysis
+## 故障排除
 
-### document_summarizer
-- **功能**: 总结文档内容
-- **参数**: `text` (文本)
-- **任务类型**: research, analysis
+### DeepSeek API 错误
 
-### api_client
-- **功能**: 调用 API 接口
-- **参数**: `endpoint` (端点), `method` (方法)
-- **任务类型**: coding, general
+确保使用最新版本，已修复 `response_format` 兼容性问题。
 
-## 🔒 最佳实践
+### 意图识别失败
 
-### 1. 错误处理
-```python
-result = agent.run("your query")
+检查：
+1. LLM API Key 是否正确
+2. 意图描述是否清晰
+3. 网络连接是否正常
 
-if result["success"]:
-    print(result["result"])
-else:
-    print(f"错误: {result['error']}")
-    for error in result["errors"]:
-        print(f"  - {error}")
-```
-
-### 2. 会话管理
-```python
-# 使用相同 session_id 保持上下文
-agent.chat("第一个问题", session_id="user_123")
-agent.chat("跟进问题", session_id="user_123")
-```
-
-### 3. 工具设计
-```python
-@tool
-def good_tool(param: str, optional: int = 10) -> str:
-    """
-    清晰的工具描述有助于 LLM 正确使用
-
-    Args:
-        param: 参数说明
-        optional: 可选参数说明
-
-    Returns:
-        返回值说明
-    """
-    return f"结果: {param}"
-```
-
-## 🐛 故障排除
-
-### 问题 1: API Key 错误
-```
-解决方案: 检查 .env 文件中的 API Key 是否正确
-```
-
-### 问题 2: 工具未被调用
-```
-解决方案: 确保工具的描述清晰，并在 task_types 中正确分类
-```
-
-### 问题 3: 无限循环
-```
-解决方案: 检查 max_iterations 设置，默认为 5
-```
-
-## 📚 参考资料
-
-- [LangGraph 官方文档](https://python.langchain.com/docs/langgraph)
-- [LangChain 文档](https://python.langchain.com/)
-- [OpenAI API 文档](https://platform.openai.com/docs)
-
-## 📝 许可证
+## 许可证
 
 MIT License
 
-## 🤝 贡献
+## 贡献
 
 欢迎提交 Issue 和 Pull Request！
-
-## 📧 联系
-
-如有问题或建议，请创建 Issue。

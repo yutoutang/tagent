@@ -16,6 +16,65 @@ from intent_system.core.intent_definition import IntentDefinition
 from intent_system.builtin_intents.data_intents import register_builtin_data_intents
 
 
+def _get_execution_summary_from_dict(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    从状态字典生成执行摘要
+
+    Args:
+        state_dict: 状态字典
+
+    Returns:
+        执行摘要
+    """
+    execution_traces = state_dict.get("execution_traces", [])
+
+    successful = [t for t in execution_traces if t.get("status") == "success"]
+    failed = [t for t in execution_traces if t.get("status") == "failed"]
+
+    total_duration = sum(
+        (t.get("end_time", t.get("start_time")) or t.get("start_time")) - t.get("start_time", 0)
+        for t in execution_traces
+        if t.get("end_time") is not None
+    )
+
+    return {
+        "total_intents": len(execution_traces),
+        "successful": len(successful),
+        "failed": len(failed),
+        "total_duration": total_duration,
+        "intents": [
+            {
+                "intent_id": t.get("intent_id"),
+                "status": t.get("status"),
+                "duration": t.get("duration"),
+                "error": t.get("error")
+            }
+            for t in execution_traces
+        ]
+    }
+
+
+def _serialize_reflection_result(reflection_result: Any) -> Optional[Dict[str, Any]]:
+    """
+    序列化反思结果
+
+    Args:
+        reflection_result: 反思结果（可能是 BaseModel 或 dict）
+
+    Returns:
+        序列化后的字典
+    """
+    if reflection_result is None:
+        return None
+
+    if hasattr(reflection_result, "model_dump"):
+        return reflection_result.model_dump()
+    elif isinstance(reflection_result, dict):
+        return reflection_result
+    else:
+        return None
+
+
 class YAgent:
     """
     YAgent - 智能意图 Agent
@@ -115,18 +174,18 @@ class YAgent:
             # 执行图
             result_state = self.app.invoke(initial_state, config)
 
-            # 返回结果
+            # LangGraph 返回的是 dict，需要用字典访问方式
             return {
-                "success": result_state.is_complete,
-                "result": result_state.result,
-                "task_type": result_state.task_type,
-                "intent_confidence": result_state.intent_confidence,
-                "detected_intents": result_state.detected_intents,
-                "intent_results": result_state.intent_results,
-                "execution_summary": result_state.get_execution_summary(),
-                "reflection_result": result_state.reflection_result.model_dump() if result_state.reflection_result else None,
-                "intermediate_steps": result_state.intermediate_steps,
-                "errors": result_state.errors
+                "success": result_state.get("is_complete", False),
+                "result": result_state.get("result"),
+                "task_type": result_state.get("task_type"),
+                "intent_confidence": result_state.get("intent_confidence", 0.0),
+                "detected_intents": result_state.get("detected_intents", []),
+                "intent_results": result_state.get("intent_results", {}),
+                "execution_summary": _get_execution_summary_from_dict(result_state),
+                "reflection_result": _serialize_reflection_result(result_state.get("reflection_result")),
+                "intermediate_steps": result_state.get("intermediate_steps", []),
+                "errors": result_state.get("errors", [])
             }
 
         except Exception as e:
@@ -186,17 +245,18 @@ class YAgent:
         try:
             result_state = await self.app.ainvoke(initial_state, config)
 
+            # LangGraph 返回的是 dict，需要用字典访问方式
             return {
-                "success": result_state.is_complete,
-                "result": result_state.result,
-                "task_type": result_state.task_type,
-                "intent_confidence": result_state.intent_confidence,
-                "detected_intents": result_state.detected_intents,
-                "intent_results": result_state.intent_results,
-                "execution_summary": result_state.get_execution_summary(),
-                "reflection_result": result_state.reflection_result.model_dump() if result_state.reflection_result else None,
-                "intermediate_steps": result_state.intermediate_steps,
-                "errors": result_state.errors
+                "success": result_state.get("is_complete", False),
+                "result": result_state.get("result"),
+                "task_type": result_state.get("task_type"),
+                "intent_confidence": result_state.get("intent_confidence", 0.0),
+                "detected_intents": result_state.get("detected_intents", []),
+                "intent_results": result_state.get("intent_results", {}),
+                "execution_summary": _get_execution_summary_from_dict(result_state),
+                "reflection_result": _serialize_reflection_result(result_state.get("reflection_result")),
+                "intermediate_steps": result_state.get("intermediate_steps", []),
+                "errors": result_state.get("errors", [])
             }
 
         except Exception as e:

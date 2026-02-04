@@ -2,6 +2,7 @@
 意图解析器 - 使用 LLM 解析用户输入，识别多个意图
 """
 
+import json
 import time
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -93,7 +94,7 @@ class IntentParser:
         """
         self.llm = llm
         self.registry = registry
-        self.parser = llm.with_structured_output(IntentParseResult)
+        # 不使用 with_structured_output，兼容更多 API（如 DeepSeek）
 
     def parse(
         self,
@@ -138,21 +139,32 @@ class IntentParser:
             # 使用流式调用 LLM 进行结构化解析
             print(f"\n[LLM 调用] 意图解析: {user_input[:50]}...")
 
+            # 添加 JSON 格式要求到 prompt
+            json_instruction = "\n\n重要：请以 JSON 格式返回结果，字段包括：primary_intent, confidence, sub_intents, parameters, dependencies, reasoning"
+
             # 流式获取响应
-            chunks = []
-            for chunk in self.parser.stream([
-                SystemMessage(content=system_prompt),
+            full_content = ""
+            for chunk in self.llm.stream([
+                SystemMessage(content=system_prompt + json_instruction),
                 HumanMessage(content=user_input)
             ]):
-                chunks.append(chunk)
-                # 输出流式进度
                 if hasattr(chunk, 'content'):
+                    full_content += chunk.content
+                    # 输出流式进度
                     print(f"[流式输出] {chunk.content[:100] if len(chunk.content) > 100 else chunk.content}")
 
-            # 获取最终结果
-            result = chunks[-1] if chunks else None
-            if result:
-                print(f"[LLM 完成] 识别意图: {result.primary_intent}, 置信度: {result.confidence:.2f}")
+            print(f"[LLM 完成] 解析响应内容")
+
+            # 从响应中提取 JSON（处理可能的 markdown 代码块）
+            json_content = self._extract_json(full_content)
+
+            # 解析为 IntentParseResult
+            result_dict = json.loads(json_content)
+            # 数据清洗：处理 LLM 可能返回的不符合格式的数据
+            result_dict = self._sanitize_result_dict(result_dict)
+            result = IntentParseResult(**result_dict)
+
+            print(f"[解析成功] 识别意图: {result.primary_intent}, 置信度: {result.confidence:.2f}")
 
             # 验证识别的意图是否存在
             validated_result = self._validate_result(result)
@@ -163,6 +175,120 @@ class IntentParser:
             print(f"[LLM 错误] {str(e)}")
             # 降级处理：返回基础解析结果
             return self._fallback_parse(user_input, str(e))
+
+    def _extract_json(self, content: str) -> str:
+        """
+        从 LLM 响应中提取 JSON 内容
+
+        处理以下几种情况：
+        1. 纯 JSON 字符串
+        2. Markdown 代码块包裹的 JSON（```json ... ```）
+
+        Args:
+            content: LLM 响应内容
+
+        Returns:
+            提取的 JSON 字符串
+        """
+        content = content.strip()
+
+        # 尝试直接解析
+        try:
+            json.loads(content)
+            return content
+        except json.JSONDecodeError:
+            pass
+
+        # 尝试提取 markdown 代码块中的 JSON
+        import re
+        # 匹配 ```json ... ``` 或 ``` ... ```
+        pattern = r'```(?:json)?\s*\n?(.*?)```'
+        matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
+
+        if matches:
+            for match in matches:
+                try:
+                    json.loads(match.strip())
+                    return match.strip()
+                except json.JSONDecodeError:
+                    continue
+
+        # 如果都没找到，尝试找第一个完整的 JSON 对象
+        # 使用括号匹配找到最外层的 { ... }
+        brace_count = 0
+        start_idx = -1
+        for i, char in enumerate(content):
+            if char == '{':
+                if brace_count == 0:
+                    start_idx = i
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0 and start_idx >= 0:
+                    json_str = content[start_idx:i+1]
+                    try:
+                        json.loads(json_str)
+                        return json_str
+                    except json.JSONDecodeError:
+                        pass
+
+        # 如果都失败了，抛出异常
+        raise ValueError("无法从响应中提取有效的 JSON")
+
+    def _sanitize_result_dict(self, result_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        清洗和修正 LLM 返回的结果字典
+
+        处理 LLM 可能返回的不符合格式的数据：
+- dependencies: dict -> list
+        - sub_intents: dict -> list
+        - parameters: list -> dict
+        - confidence: str/int -> float
+
+        Args:
+            result_dict: 原始结果字典
+
+        Returns:
+            修正后的结果字典
+        """
+        # 处理 dependencies: 如果是空 dict，转为空 list
+        if 'dependencies' in result_dict:
+            if isinstance(result_dict['dependencies'], dict):
+                result_dict['dependencies'] = []
+            elif not isinstance(result_dict['dependencies'], list):
+                result_dict['dependencies'] = []
+
+        # 处理 sub_intents: 确保是 list
+        if 'sub_intents' in result_dict:
+            if isinstance(result_dict['sub_intents'], dict):
+                # 如果是 dict，尝试转换
+                if not result_dict['sub_intents']:
+                    result_dict['sub_intents'] = []
+                else:
+                    # 尝试从 dict 中提取列表
+                    result_dict['sub_intents'] = list(result_dict['sub_intents'].values())
+            elif not isinstance(result_dict['sub_intents'], list):
+                result_dict['sub_intents'] = []
+
+        # 处理 parameters: 确保是 dict
+        if 'parameters' in result_dict:
+            if isinstance(result_dict['parameters'], list):
+                # 如果是空列表，转为空 dict
+                result_dict['parameters'] = {}
+            elif not isinstance(result_dict['parameters'], dict):
+                result_dict['parameters'] = {}
+
+        # 处理 confidence: 确保是 float
+        if 'confidence' in result_dict:
+            if isinstance(result_dict['confidence'], (int, str)):
+                try:
+                    result_dict['confidence'] = float(result_dict['confidence'])
+                except (ValueError, TypeError):
+                    result_dict['confidence'] = 0.5
+            elif not isinstance(result_dict['confidence'], (int, float)):
+                result_dict['confidence'] = 0.5
+
+        return result_dict
 
     def _build_intent_prompt(self, intents: List[IntentDefinition]) -> str:
         """

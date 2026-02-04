@@ -240,7 +240,9 @@ class IntentParser:
         清洗和修正 LLM 返回的结果字典
 
         处理 LLM 可能返回的不符合格式的数据：
-- dependencies: dict -> list
+- primary_intent: None -> 默认意图
+- reasoning: None -> 默认说明
+        - dependencies: dict -> list
         - sub_intents: dict -> list
         - parameters: list -> dict
         - confidence: str/int -> float
@@ -251,6 +253,23 @@ class IntentParser:
         Returns:
             修正后的结果字典
         """
+        # 处理 primary_intent: 如果为 None 或空，设置默认值
+        if 'primary_intent' not in result_dict or result_dict['primary_intent'] is None:
+            # 获取第一个可用意图作为默认
+            all_intents = self.registry.list_all()
+            if all_intents:
+                result_dict['primary_intent'] = all_intents[0].metadata.id
+            else:
+                result_dict['primary_intent'] = 'unknown'
+        elif not isinstance(result_dict['primary_intent'], str):
+            result_dict['primary_intent'] = str(result_dict['primary_intent'])
+
+        # 处理 reasoning: 如果为 None，提供默认说明
+        if 'reasoning' not in result_dict or result_dict['reasoning'] is None:
+            result_dict['reasoning'] = 'LLM 未提供详细说明'
+        elif not isinstance(result_dict['reasoning'], str):
+            result_dict['reasoning'] = str(result_dict['reasoning'])
+
         # 处理 dependencies: 如果是空 dict，转为空 list
         if 'dependencies' in result_dict:
             if isinstance(result_dict['dependencies'], dict):

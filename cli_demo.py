@@ -182,19 +182,11 @@ class IntentCLI:
 
             try:
                 # 从环境变量读取配置
-                api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-                base_url = os.getenv("BASE_URL")  # 用于 DeepSeek 等
-                model = os.getenv("MODEL_NAME")
-
-                # 创建 Agent
-                if api_key:
-                    self.agent = YAgent(
-                        api_key=api_key,
-                        base_url=base_url,
-                        model_name=model
-                    )
-                else:
-                    self.agent = YAgent()
+                self.agent = YAgent(
+                    api_key="sk-1b7e48556f154e9ab4d40df712e0bec6",
+                    base_url="https://api.deepseek.com",
+                    model_name="deepseek-chat"
+                )
 
                 # 创建会话
                 if not self.session_id:

@@ -28,13 +28,22 @@ def _get_execution_summary_from_dict(state_dict: Dict[str, Any]) -> Dict[str, An
     """
     execution_traces = state_dict.get("execution_traces", [])
 
-    successful = [t for t in execution_traces if t.get("status") == "success"]
-    failed = [t for t in execution_traces if t.get("status") == "failed"]
+    # 处理 Pydantic 对象或字典
+    def get_attr(obj, key, default=None):
+        """安全获取属性，支持 Pydantic 对象和字典"""
+        if hasattr(obj, key):
+            return getattr(obj, key, default)
+        elif isinstance(obj, dict):
+            return obj.get(key, default)
+        return default
+
+    successful = [t for t in execution_traces if get_attr(t, "status") == "success"]
+    failed = [t for t in execution_traces if get_attr(t, "status") == "failed"]
 
     total_duration = sum(
-        (t.get("end_time", t.get("start_time")) or t.get("start_time")) - t.get("start_time", 0)
+        (get_attr(t, "end_time") or get_attr(t, "start_time")) - get_attr(t, "start_time", 0)
         for t in execution_traces
-        if t.get("end_time") is not None
+        if get_attr(t, "end_time") is not None
     )
 
     return {
@@ -44,10 +53,10 @@ def _get_execution_summary_from_dict(state_dict: Dict[str, Any]) -> Dict[str, An
         "total_duration": total_duration,
         "intents": [
             {
-                "intent_id": t.get("intent_id"),
-                "status": t.get("status"),
-                "duration": t.get("duration"),
-                "error": t.get("error")
+                "intent_id": get_attr(t, "intent_id"),
+                "status": get_attr(t, "status"),
+                "duration": get_attr(t, "duration"),
+                "error": get_attr(t, "error")
             }
             for t in execution_traces
         ]

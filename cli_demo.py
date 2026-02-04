@@ -208,8 +208,8 @@ class IntentCLI:
                 return False
         return True
 
-    def process_query(self, query: str):
-        """处理用户查询"""
+    async def process_query_async(self, query: str):
+        """异步处理用户查询"""
         if not query.strip():
             return
 
@@ -220,8 +220,8 @@ class IntentCLI:
         print(f"\n{Colors.BOLD}{Colors.HEADER}正在处理...{Colors.ENDC}\n")
 
         try:
-            # 调用 Agent
-            result = self.agent.run(query, session_id=self.session_id)
+            # 使用异步 API 调用 Agent
+            result = await self.agent.arun(query, session_id=self.session_id)
 
             # 记录历史
             self.history.append({
@@ -237,6 +237,14 @@ class IntentCLI:
             print(f"{Colors.FAIL}✗ 执行出错: {e}{Colors.ENDC}\n")
             import traceback
             traceback.print_exc()
+
+    def process_query(self, query: str):
+        """处理用户查询（同步包装）"""
+        if not query.strip():
+            return
+
+        # 运行异步处理
+        asyncio.run(self.process_query_async(query))
 
     def display_result(self, result: dict):
         """显示执行结果"""

@@ -1,0 +1,43 @@
+# Custom Evaluation Example - Using HTTP Prompt URL
+name: "custom_prompt_eval"
+description: "Evaluation with HTTP-based prompt template"
+
+# LLM Configuration
+llm:
+  # Supports both 'sk' and 'api_key'
+  sk: "${OPENAI_API_KEY}"
+  model_name: "gpt-4o"
+  base_url: "https://api.openai.com/v1"  # Custom endpoint
+  temperature: 0.0
+
+# Prompt Configuration
+prompt:
+  # Fetch prompt from HTTP endpoint
+  prompt_url: "https://example.com/api/prompts/evaluation.txt"
+  prompt_headers:
+    Authorization: "Bearer ${PROMPT_API_KEY}"
+    Content-Type: "text/plain"
+
+  cache_enabled: true
+
+# Metrics Configuration
+metrics:
+  - name: "keyword_check"
+    type: "accuracy"
+    weight: 1.0
+    threshold: 0.7
+    params:
+      metric_name: "contains_keyword"
+
+# Dataset Configuration
+dataset_path: "./data/custom_dataset.json"
+
+# Execution Configuration
+parallel: false
+max_concurrent: 5
+output_format: "json"
+
+# Advanced Configuration
+retry_count: 3
+enable_cache: true
+verbose: true

@@ -1,0 +1,26 @@
+{
+  "name": "sentiment_analysis",
+  "description": "Sentiment analysis test dataset",
+  "items": [
+    {
+      "input": "I love this product! It's amazing!",
+      "expected": "positive"
+    },
+    {
+      "input": "This is the worst experience I've ever had.",
+      "expected": "negative"
+    },
+    {
+      "input": "The weather is okay today.",
+      "expected": "neutral"
+    },
+    {
+      "input": "Absolutely fantastic service!",
+      "expected": "positive"
+    },
+    {
+      "input": "I'm not happy with this purchase.",
+      "expected": "negative"
+    }
+  ]
+}

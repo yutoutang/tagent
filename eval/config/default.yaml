@@ -1,0 +1,62 @@
+# Evaluation Configuration - Default Template
+name: "basic_evaluation"
+description: "Basic LLM evaluation with accuracy metrics"
+
+# LLM Configuration
+llm:
+  # API Key - supports both 'sk' and 'api_key'
+  # Can also use environment variable: ${OPENAI_API_KEY}
+  api_key: "${OPENAI_API_KEY}"  # or sk: "${OPENAI_API_KEY}"
+
+  # Model configuration
+  provider: "openai"  # openai, anthropic, custom
+  model_name: "gpt-4o"
+  base_url: null  # Optional: custom endpoint
+
+  # Generation parameters
+  temperature: 0.0
+  max_tokens: null
+  timeout: 30
+
+# Prompt Configuration
+prompt:
+  # Option 1: Fetch from HTTP endpoint
+  prompt_url: null
+  prompt_headers: {}
+
+  # Option 2: Inline template (used if prompt_url not provided)
+  prompt_template: |
+    Please analyze the following input: {input}
+
+    Provide a detailed response.
+
+  cache_enabled: true
+
+# Metrics Configuration
+metrics:
+  - name: "exact_match"
+    type: "accuracy"
+    weight: 1.0
+    threshold: 0.8
+    params:
+      metric_name: "exact_match"
+
+  - name: "contains_keyword"
+    type: "accuracy"
+    weight: 0.5
+    threshold: 0.7
+    params:
+      metric_name: "contains_keyword"
+
+# Dataset Configuration
+dataset_path: "eval/data/evaluation_dataset.json"
+
+# Execution Configuration
+parallel: false
+max_concurrent: 5
+output_format: "json"
+
+# Advanced Configuration
+retry_count: 2
+enable_cache: true
+verbose: true

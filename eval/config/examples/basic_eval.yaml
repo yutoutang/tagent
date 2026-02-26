@@ -1,0 +1,42 @@
+# Basic Evaluation Example - Sentiment Analysis
+name: "sentiment_analysis_eval"
+description: "Evaluate sentiment analysis performance"
+
+# LLM Configuration
+llm:
+  api_key: "${OPENAI_API_KEY}"
+  model_name: "gpt-4o"
+  base_url: null  # Optional: custom endpoint like "https://api.deepseek.com/v1"
+  temperature: 0.0
+
+# Prompt Configuration
+prompt:
+  # Inline prompt template for sentiment analysis
+  prompt_template: |
+    Analyze the sentiment of the following text: {input}
+
+    Respond with exactly one word: positive, negative, or neutral.
+
+  cache_enabled: true
+
+# Metrics Configuration
+metrics:
+  - name: "accuracy"
+    type: "accuracy"
+    weight: 1.0
+    threshold: 0.8
+    params:
+      metric_name: "exact_match"
+
+# Dataset Configuration
+dataset_path: "eval/data/sentiment_dataset.json"
+
+# Execution Configuration
+parallel: true
+max_concurrent: 10
+output_format: "json"
+
+# Advanced Configuration
+retry_count: 2
+enable_cache: true
+verbose: true

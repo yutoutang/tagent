@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, TypeVar, Union
 
-from .types import Api, KnownProvider, Model, Usage
+from .types import Api, KnownProvider, Model, Usage, ModelCost
+from .models_generated import MODELS as GENERATED_MODELS
 
 TApi = TypeVar("TApi", bound=str)
 
@@ -24,6 +25,15 @@ def _init_registry_from_models(models: Dict[str, Dict[str, Any]]) -> None:
     for provider, provider_models in models.items():
         _model_registry[provider] = {}
         for model_id, model_data in provider_models.items():
+            # Convert cost dict to ModelCost dataclass
+            cost_data = model_data.get("cost", {})
+            cost = ModelCost(
+                input=cost_data.get("input", 0.0),
+                output=cost_data.get("output", 0.0),
+                cacheRead=cost_data.get("cacheRead", 0.0),
+                cacheWrite=cost_data.get("cacheWrite", 0.0),
+            )
+
             _model_registry[provider][model_id] = Model(
                 id=model_data.get("id", model_id),
                 name=model_data.get("name", model_id),
@@ -32,7 +42,7 @@ def _init_registry_from_models(models: Dict[str, Dict[str, Any]]) -> None:
                 baseUrl=model_data.get("baseUrl", ""),
                 reasoning=model_data.get("reasoning", False),
                 input=model_data.get("input", ["text"]),
-                cost=model_data.get("cost", {}),
+                cost=cost,
                 contextWindow=model_data.get("contextWindow", 0),
                 maxTokens=model_data.get("maxTokens", 0),
                 headers=model_data.get("headers"),
@@ -148,5 +158,15 @@ def models_are_equal(
     return a.id == b.id and a.provider == b.provider
 
 
-# Initialize with empty registry - will be populated by generated models
-_init_registry_from_models({})
+def get_all_models() -> Dict[str, Dict[str, Model]]:
+    """
+    Get all models in the registry.
+
+    Returns:
+        Dictionary mapping provider -> model_id -> Model
+    """
+    return _model_registry
+
+
+# Initialize registry with generated models
+_init_registry_from_models(GENERATED_MODELS)

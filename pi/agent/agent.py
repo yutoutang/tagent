@@ -4,6 +4,7 @@ No transport abstraction - calls streamSimple via the loop.
 """
 from typing import Any, Callable, Literal
 
+from .message_utils import default_convert_to_llm
 from .types import (
     AgentContext,
     AgentEvent,
@@ -386,6 +387,9 @@ class Agent:
                 self.aborted = True
 
         self._abort_controller = AbortController()
+
+        # Get model from state
+        model = self._state.get("model")
 
         reasoning = None
         if self._state.get("thinkingLevel") != "off":

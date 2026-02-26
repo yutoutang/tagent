@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+"""pi command wrapper."""
+import sys
+import os
+
+# Ensure the pi.coding module is in the path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)
+
+from pi.coding.main import main
+
+if __name__ == "__main__":
+    sys.exit(main())

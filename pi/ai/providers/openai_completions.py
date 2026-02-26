@@ -89,14 +89,14 @@ def detect_compat(model: Model) -> Dict[str, Any]:
 
     is_zai = provider == "zai" or "api.z.ai" in base_url
     is_non_standard = (
-        provider == "cerebras" or "cerebras.ai" in base_url or
-        provider == "xai" or "api.x.ai" in base_url or
-        provider == "mistral" or "mistral.ai" in base_url or
-        "chutes.ai" in base_url or
-        "deepseek.com" in base_url or
-        is_zai or
-        provider == "opencode" or
-        "opencode.ai" in base_url
+            provider == "cerebras" or "cerebras.ai" in base_url or
+            provider == "xai" or "api.x.ai" in base_url or
+            provider == "mistral" or "mistral.ai" in base_url or
+            "chutes.ai" in base_url or
+            "deepseek.com" in base_url or
+            is_zai or
+            provider == "opencode" or
+            "opencode.ai" in base_url
     )
     use_max_tokens = provider == "mistral" or "mistral.ai" in base_url or "chutes.ai" in base_url
     is_grok = provider == "xai" or "api.x.ai" in base_url
@@ -113,7 +113,7 @@ def detect_compat(model: Model) -> Dict[str, Any]:
         "requiresThinkingAsText": is_mistral,
         "requiresMistralToolIds": is_mistral,
         "thinkingFormat": "zai" if is_zai else "openai",
-        "supportsStrictMode": True,
+        "supportsStrictMode": not is_non_standard,
     }
 
 
@@ -131,7 +131,8 @@ def get_compat(model: Model) -> Dict[str, Any]:
         "supportsUsageInStreaming": compat.get("supportsUsageInStreaming", detected["supportsUsageInStreaming"]),
         "maxTokensField": compat.get("maxTokensField", detected["maxTokensField"]),
         "requiresToolResultName": compat.get("requiresToolResultName", detected["requiresToolResultName"]),
-        "requiresAssistantAfterToolResult": compat.get("requiresAssistantAfterToolResult", detected["requiresAssistantAfterToolResult"]),
+        "requiresAssistantAfterToolResult": compat.get("requiresAssistantAfterToolResult",
+                                                       detected["requiresAssistantAfterToolResult"]),
         "requiresThinkingAsText": compat.get("requiresThinkingAsText", detected["requiresThinkingAsText"]),
         "requiresMistralToolIds": compat.get("requiresMistralToolIds", detected["requiresMistralToolIds"]),
         "thinkingFormat": compat.get("thinkingFormat", detected["thinkingFormat"]),
@@ -158,9 +159,9 @@ def convert_tools(tools: List[Tool], compat: Dict[str, Any]) -> List[Dict[str, A
 
 
 def convert_messages(
-    model: Model,
-    context: Context,
-    compat: Dict[str, Any],
+        model: Model,
+        context: Context,
+        compat: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     """Convert messages to OpenAI API format."""
     params = []
@@ -216,7 +217,8 @@ def convert_messages(
                 if model.provider == "github-copilot":
                     assistant_msg["content"] = "".join(sanitize_surrogates(b.text) for b in text_blocks)
                 else:
-                    assistant_msg["content"] = [{"type": "text", "text": sanitize_surrogates(b.text)} for b in text_blocks]
+                    assistant_msg["content"] = [{"type": "text", "text": sanitize_surrogates(b.text)} for b in
+                                                text_blocks]
 
             tool_calls = [b for b in msg.content if b.type == "toolCall"]
             if tool_calls:
@@ -252,9 +254,9 @@ def convert_messages(
 
 
 def stream_openai_completions(
-    model: Model,
-    context: Context,
-    options: Optional[OpenAICompletionsOptions] = None,
+        model: Model,
+        context: Context,
+        options: Optional[OpenAICompletionsOptions] = None,
 ) -> AssistantMessageEventStream:
     """
     Stream completions from OpenAI and compatible APIs.
@@ -378,7 +380,7 @@ def stream_openai_completions(
                     if choice.delta.tool_calls:
                         for tool_call in choice.delta.tool_calls:
                             if (not current_block or current_block.type != "toolCall" or
-                                (tool_call.id and current_block.id != tool_call.id)):
+                                    (tool_call.id and current_block.id != tool_call.id)):
                                 finish_current_block()
                                 current_block = ToolCall(
                                     type="toolCall",
@@ -423,10 +425,10 @@ def stream_openai_completions(
 
 
 def _build_params(
-    model: Model,
-    context: Context,
-    options: Optional[OpenAICompletionsOptions],
-    compat: Dict[str, Any],
+        model: Model,
+        context: Context,
+        options: Optional[OpenAICompletionsOptions],
+        compat: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Build parameters for OpenAI API call."""
     messages = convert_messages(model, context, compat)
@@ -452,7 +454,7 @@ def _build_params(
     if options and options.get("temperature") is not None:
         params["temperature"] = options["temperature"]
 
-    if context.tools:
+    if context.tools and len(context.tools) > 0:
         params["tools"] = convert_tools(context.tools, compat)
     elif has_tool_history(context.messages):
         params["tools"] = []
@@ -473,9 +475,9 @@ def _build_params(
 
 
 def stream_simple_openai_completions(
-    model: Model,
-    context: Context,
-    options: Optional[SimpleStreamOptions] = None,
+        model: Model,
+        context: Context,
+        options: Optional[SimpleStreamOptions] = None,
 ) -> AssistantMessageEventStream:
     """Stream with simplified options."""
     api_key = (options.get("apiKey") if options else None) or get_env_api_key(model.provider)

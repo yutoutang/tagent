@@ -5,7 +5,8 @@ Converted from TypeScript @mariozechner/agent package.
 """
 
 # Core Agent
-from .agent import Agent, AgentOptions, default_convert_to_llm
+from .agent import Agent, AgentOptions
+from .message_utils import default_convert_to_llm
 
 # Loop functions
 from .agent_loop import (
@@ -38,6 +39,17 @@ from .tools import (
     get_builtin_tools,
 )
 
+# Message utilities
+from .message_utils import (
+    dicts_to_agent_messages,
+    create_user_message,
+    create_user_message_from_content,
+    default_convert_to_llm,
+)
+
+# Import AI types directly for Message types
+from ..ai import UserMessage, AssistantMessage, ToolResultMessage
+
 # Types
 from .types import (
     # Content types
@@ -50,10 +62,6 @@ from .types import (
     Usage,
     Cost,
     BaseMessage,
-    UserMessage,
-    AssistantMessage,
-    ToolResultMessage,
-    Message,
     # Model types
     Model,
     ThinkingBudgets,
@@ -89,6 +97,10 @@ __all__ = [
     "Agent",
     "AgentOptions",
     "default_convert_to_llm",
+    # Message utilities
+    "dicts_to_agent_messages",
+    "create_user_message",
+    "create_user_message_from_content",
     # Loop functions
     "agent_loop",
     "agent_loop_continue",

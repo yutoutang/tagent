@@ -4,11 +4,10 @@ Converted from TypeScript types.ts
 """
 from typing import Any, Callable, TypeAlias, TypedDict, Union
 from typing_extensions import Literal, NotRequired
-from dataclasses import dataclass
 from enum import Enum
 import time
 
-from pi.ai import Model, Message
+from pi.ai import Model, Message, AssistantMessage, ToolResultMessage
 
 
 # ============================================================================
@@ -67,31 +66,6 @@ class Cost(TypedDict):
 class BaseMessage(TypedDict):
     role: str
     timestamp: int
-
-
-class UserMessage(BaseMessage):
-    role: Literal["user"]
-    content: list[ContentBlock]
-
-
-class AssistantMessage(BaseMessage):
-    role: Literal["assistant"]
-    content: list[ContentBlock]
-    api: str
-    provider: str
-    model: str
-    usage: Usage
-    stopReason: Literal["stop", "length", "toolUse", "aborted", "error"]
-    errorMessage: NotRequired[str]
-
-
-class ToolResultMessage(BaseMessage):
-    role: Literal["toolResult"]
-    toolCallId: str
-    toolName: str
-    content: list[ContentBlock]
-    details: dict[str, Any]
-    isError: bool
 
 
 # ============================================================================
@@ -256,7 +230,7 @@ GetFollowUpMessagesFn = Callable[[], Any]
 # ============================================================================
 
 class AgentLoopConfig(TypedDict):
-    model: dict
+    model: Model
     convertToLlm: ConvertToLlmFn
     transformContext: NotRequired[TransformContextFn | None]
     getApiKey: NotRequired[GetApiKeyFn | None]

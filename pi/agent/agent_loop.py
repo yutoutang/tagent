@@ -4,7 +4,9 @@ Transforms to Message[] only at the LLM call boundary.
 """
 import dataclasses
 from typing import Any, Callable
+
 from .event_stream import EventStream
+from .message_utils import default_convert_to_llm
 from .types import (
     AgentContext,
     AgentEvent,
@@ -13,12 +15,51 @@ from .types import (
     AgentTool,
     AgentToolResult,
     AssistantMessage,
-    ToolResultMessage,
+    ToolCall,
     Message,
 )
 from .tools import BaseTool, ToolExecutor
-from ..ai import stream, Context, Model
+from ..ai import stream, Context, Model, ToolResultMessage
 from ..ai.stream import sample_stream
+
+
+# todo 下面的函数都需要优化
+def _to_dict(obj: Any) -> Any:
+    """Safely convert dataclass to dict, or return as-is if already a dict."""
+    if dataclasses.is_dataclass(obj):
+        return dataclasses.asdict(obj)
+    return obj
+
+
+def _convert_tools(tools: list[Any] | None) -> list[Any] | None:
+    """Convert tools to LLM-compatible format."""
+    if not tools:
+        return None
+
+    from .tools import BaseTool
+    from ..ai.types import Tool
+
+    converted = []
+    for tool in tools:
+        if isinstance(tool, BaseTool):
+            tool_dict = tool.to_dict()
+            converted.append(Tool(
+                name=tool_dict["name"],
+                description=tool_dict["description"],
+                parameters=tool_dict["parameters"],
+            ))
+        elif isinstance(tool, dict):
+            converted.append(Tool(
+                name=tool["name"],
+                description=tool["description"],
+                parameters=tool.get("parameters", {}),
+            ))
+        elif isinstance(tool, Tool):
+            converted.append(tool)
+        else:
+            raise TypeError(f"Unsupported tool type: {type(tool)}")
+
+    return converted
 
 
 def agent_loop(
@@ -164,7 +205,7 @@ async def _run_loop(
             )
             new_messages.append(message)
 
-            stop_reason = message.get("stopReason")
+            stop_reason = message.stopReason
             if stop_reason in ("error", "aborted"):
                 stream.push({
                     "type": "turn_end",
@@ -177,8 +218,8 @@ async def _run_loop(
 
             # Check for tool calls
             tool_calls = [
-                c for c in message.get("content", [])
-                if c.get("type") == "toolCall"
+                c for c in (message.content or [])
+                if c.type == "toolCall"
             ]
             has_more_tool_calls = len(tool_calls) > 0
 
@@ -253,12 +294,15 @@ async def _stream_assistant_response(
         messages = await transform_context(messages, signal)
 
     # Convert to LLM-compatible messages (AgentMessage[] → Message[])
-    # 这种写法堆栈报错无法出阿里
+    # todo 这种写法堆栈报错无法抛出
     convert_to_llm = config["convertToLlm"]
-    llm_messages = convert_to_llm(messages)
+    llm_messages = default_convert_to_llm(messages)
+
+    # Convert tools to LLM-compatible format
+    tools = _convert_tools(context.get("tools"))
 
     # Build LLM context
-    llm_context = Context(systemPrompt=context["systemPrompt"], messages=llm_messages, tools=context.get("tools"))
+    llm_context = Context(systemPrompt=context["systemPrompt"], messages=llm_messages, tools=tools)
 
     # todo 测试完后还原
     stream_function = stream_fn or _default_stream_fn
@@ -270,9 +314,8 @@ async def _stream_assistant_response(
         resolved_api_key = get_api_key(config["model"]["provider"])
 
     # todo 请求模型的位置
-    model = Model(**config["model"])
     response = await sample_stream(
-        model,
+        config["model"],
         llm_context,
         {
             **config,
@@ -293,7 +336,7 @@ async def _stream_assistant_response(
             added_partial = True
             stream.push({
                 "type": "message_start",
-                "message": dataclasses.asdict(partial_message),
+                "message": _to_dict(partial_message),
             })
 
         elif event_type in (
@@ -307,7 +350,7 @@ async def _stream_assistant_response(
                 stream.push({
                     "type": "message_update",
                     "assistantMessageEvent": event,
-                    "message": dataclasses.asdict(partial_message),
+                    "message": _to_dict(partial_message),
                 })
 
         elif event_type in ("done", "error"):
@@ -317,7 +360,7 @@ async def _stream_assistant_response(
             else:
                 context["messages"].append(final_message)
             if not added_partial:
-                stream.push({"type": "message_start", "message": dataclasses.asdict(final_message)})
+                stream.push({"type": "message_start", "message": _to_dict(final_message)})
             stream.push({"type": "message_end", "message": final_message})
             return final_message
 
@@ -325,7 +368,7 @@ async def _stream_assistant_response(
 
 
 async def _execute_tool_calls(
-    tools: list[AgentTool] | None,
+    tools: list[Any] | None,  # Can be BaseTool instances or AgentTool dicts
     assistant_message: AssistantMessage,
     signal: Any,
     stream: EventStream[AgentEvent, list[AgentMessage]],
@@ -333,8 +376,8 @@ async def _execute_tool_calls(
 ) -> dict:
     """Execute tool calls from an assistant message."""
     tool_calls = [
-        c for c in assistant_message.get("content", [])
-        if c.get("type") == "toolCall"
+        c for c in (assistant_message.content or [])
+        if c.type == "toolCall"
     ]
     results: list[ToolResultMessage] = []
     steering_messages: list[AgentMessage] | None = None
@@ -343,15 +386,17 @@ async def _execute_tool_calls(
         tool = None
         if tools:
             for t in tools:
-                if t.get("name") == tool_call.get("name"):
+                # Handle both BaseTool objects and dicts
+                tool_name = t.name if hasattr(t, 'name') else t.get("name")
+                if tool_name == tool_call.name:
                     tool = t
                     break
 
         stream.push({
             "type": "tool_execution_start",
-            "toolCallId": tool_call.get("id"),
-            "toolName": tool_call.get("name"),
-            "args": tool_call.get("arguments"),
+            "toolCallId": tool_call.id,
+            "toolName": tool_call.name,
+            "args": tool_call.arguments,
         })
 
         result: AgentToolResult
@@ -359,22 +404,22 @@ async def _execute_tool_calls(
 
         try:
             if not tool:
-                raise ValueError(f"Tool {tool_call.get('name')} not found")
+                raise ValueError(f"Tool {tool_call.name} not found")
 
             # Validate arguments (simplified - would use full validation in real implementation)
-            validated_args = tool_call.get("arguments", {})
+            validated_args = tool_call.arguments or {}
 
             # Execute tool (this would call the tool's execute method)
             result = await _execute_tool(
                 tool,
-                tool_call.get("id"),
+                tool_call.id,
                 validated_args,
                 signal,
                 lambda partial: stream.push({
                     "type": "tool_execution_update",
-                    "toolCallId": tool_call.get("id"),
-                    "toolName": tool_call.get("name"),
-                    "args": tool_call.get("arguments"),
+                    "toolCallId": tool_call.id,
+                    "toolName": tool_call.name,
+                    "args": tool_call.arguments,
                     "partialResult": partial,
                 }),
             )
@@ -387,21 +432,38 @@ async def _execute_tool_calls(
 
         stream.push({
             "type": "tool_execution_end",
-            "toolCallId": tool_call.get("id"),
-            "toolName": tool_call.get("name"),
+            "toolCallId": tool_call.id,
+            "toolName": tool_call.name,
             "result": result,
             "isError": is_error,
         })
 
-        tool_result_message: ToolResultMessage = {
-            "role": "toolResult",
-            "toolCallId": tool_call.get("id"),
-            "toolName": tool_call.get("name"),
-            "content": result.get("content"),
-            "details": result.get("details"),
-            "isError": is_error,
-            "timestamp": int(_now()),
-        }
+        # Convert result dict to proper content format
+        content_list = result.get("content", [])
+        if isinstance(content_list, list):
+            # Ensure content blocks are in correct format
+            converted_content = []
+            for item in content_list:
+                if isinstance(item, dict):
+                    item_type = item.get("type", "text")
+                    if item_type == "text":
+                        from ..ai.types import TextContent
+                        converted_content.append(TextContent(type="text", text=item.get("text", "")))
+                    else:
+                        converted_content.append(item)
+                else:
+                    converted_content.append(item)
+            content_list = converted_content
+
+        tool_result_message = ToolResultMessage(
+            role="toolResult",
+            toolCallId=tool_call.id,
+            toolName=tool_call.name,
+            content=content_list,
+            details=result.get("details"),
+            isError=is_error,
+            timestamp=int(_now()),
+        )
 
         results.append(tool_result_message)
         stream.push({"type": "message_start", "message": tool_result_message})
@@ -421,7 +483,7 @@ async def _execute_tool_calls(
 
 
 def _skip_tool_call(
-    tool_call: dict,
+    tool_call: ToolCall,
     stream: EventStream[AgentEvent, list[AgentMessage]],
 ) -> ToolResultMessage:
     """Create a skipped tool result message."""
@@ -432,27 +494,39 @@ def _skip_tool_call(
 
     stream.push({
         "type": "tool_execution_start",
-        "toolCallId": tool_call.get("id"),
-        "toolName": tool_call.get("name"),
-        "args": tool_call.get("arguments"),
+        "toolCallId": tool_call.id,
+        "toolName": tool_call.name,
+        "args": tool_call.arguments,
     })
     stream.push({
         "type": "tool_execution_end",
-        "toolCallId": tool_call.get("id"),
-        "toolName": tool_call.get("name"),
+        "toolCallId": tool_call.id,
+        "toolName": tool_call.name,
         "result": result,
         "isError": True,
     })
 
-    tool_result_message: ToolResultMessage = {
-        "role": "toolResult",
-        "toolCallId": tool_call.get("id"),
-        "toolName": tool_call.get("name"),
-        "content": result.get("content"),
-        "details": {},
-        "isError": True,
-        "timestamp": int(_now()),
-    }
+    # Convert result dict to proper content format
+    content_list = result.get("content", [])
+    if isinstance(content_list, list):
+        converted_content = []
+        for item in content_list:
+            if isinstance(item, dict):
+                from ..ai.types import TextContent
+                converted_content.append(TextContent(type="text", text=item.get("text", "")))
+            else:
+                converted_content.append(item)
+        content_list = converted_content
+
+    tool_result_message = ToolResultMessage(
+        role="toolResult",
+        toolCallId=tool_call.id,
+        toolName=tool_call.name,
+        content=content_list,
+        details={},
+        isError=True,
+        timestamp=int(_now()),
+    )
 
     stream.push({"type": "message_start", "message": tool_result_message})
     stream.push({"type": "message_end", "message": tool_result_message})
@@ -461,7 +535,7 @@ def _skip_tool_call(
 
 
 async def _execute_tool(
-    tool: AgentTool,
+    tool: Any,  # Can be BaseTool instance or AgentTool dict
     tool_call_id: str,
     params: dict,
     signal: Any,

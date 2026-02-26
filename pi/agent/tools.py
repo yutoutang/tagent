@@ -86,7 +86,7 @@ class ToolSchema:
     """Schema definition for a tool's parameters."""
     type: Literal["object"] = "object"
     properties: dict[str, ParameterProperty] = field(default_factory=dict)
-    required: list[str] = field(default_factory=dict)
+    required: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict for LLM consumption."""

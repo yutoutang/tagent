@@ -310,12 +310,13 @@ async def _stream_assistant_response(
     # Resolve API key (important for expiring tokens)
     get_api_key = config.get("getApiKey")
     resolved_api_key = get_api_key
+    model = config["model"]
     if get_api_key:
-        resolved_api_key = get_api_key(config["model"]["provider"])
+        resolved_api_key = get_api_key(model.provider)
 
     # todo 请求模型的位置
     response = await sample_stream(
-        config["model"],
+        model,
         llm_context,
         {
             **config,
@@ -328,6 +329,7 @@ async def _stream_assistant_response(
     added_partial = False
 
     async for event in response:
+        print(event)
         event_type = event.get("type")
 
         if event_type == "start":

@@ -55,9 +55,9 @@ class REPL:
         """Initialize the REPL."""
         self.console = Console()
         self.cwd = cwd or Path.cwd()
-        self.provider = provider or "google"
-        self.model = model or "gemini-2.5-flash-lite-preview-06-17"
-        self.thinking = thinking or "low"
+        self.provider = provider or "zai"
+        self.model = model or "glm-5"
+        self.thinking = thinking or "medium"
         self.running = True
         self.session: Any = None
         self._message_count = 0
@@ -155,12 +155,9 @@ class REPL:
 
     async def _create_session(self) -> None:
         """Create the agent session."""
+        # todo
         options = CreateAgentSessionOptions(
             cwd=self.cwd,
-            model={
-                "provider": self.provider,
-                "id": self.model,
-            },
             thinking_level=self.thinking,
         )
 
@@ -396,7 +393,7 @@ class REPL:
             # Recreate session with new model
             await self._create_session()
 
-            self.console.print(f"[green]✓ Switched to {model.get('name', model_id)}[/green]")
+            self.console.print(f"[green]✓ Switched to {model.name}[/green]")
         else:
             self.console.print(f"[red]Model not found: {provider}/{model_id}[/red]")
 
@@ -407,11 +404,11 @@ class REPL:
             info = f"""
 ## Current Model
 
-- **Provider:** {model.get('provider', self.provider)}
-- **Model:** {model.get('id', self.model)}
-- **Name:** {model.get('name', 'Unknown')}
-- **API:** {model.get('api', 'Unknown')}
-- **Reasoning:** {'Yes' if model.get('reasoning') else 'No'}
+- **Provider:** {model.provider}
+- **Model:** {model.id}
+- **Name:** {model.name}
+- **API:** {model.api}
+- **Reasoning:** {'Yes' if model.reasoning else 'No'}
 """
             self.console.print(Markdown(info))
         else:

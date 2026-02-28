@@ -49,9 +49,10 @@ def get_default_config_dir() -> str:
 
 def get_default_settings() -> dict:
     """Get default settings configuration."""
+    # todo 默认配置归一
     return {
-        "defaultProvider": "google",
-        "defaultModel": "gemini-2.5-flash-lite-preview-06-17",
+        "defaultProvider": "zai",
+        "defaultModel": "glm-5",
         "defaultThinkingLevel": "medium",
         "steeringMode": "one-at-a-time",
         "followUpMode": "one-at-a-time",

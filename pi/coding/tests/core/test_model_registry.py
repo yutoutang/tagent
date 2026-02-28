@@ -50,12 +50,12 @@ class TestModelRegistry:
 
         # The model might exist under a different ID format
         if model:
-            assert model["provider"] == "anthropic"
+            assert model.provider == "anthropic"
         else:
             # Try another common model
             model = registry.find("openai", "gpt-4o")
             assert model is not None
-            assert model["provider"] == "openai"
+            assert model.provider == "openai"
 
     def test_find_nonexistent_model(self, tmp_path: Path) -> None:
         """Test finding a non-existent model."""
@@ -92,8 +92,7 @@ class TestModelRegistry:
 
         assert results == []
 
-    @pytest.mark.asyncio
-    async def test_get_api_key_with_auth_storage(self, tmp_path: Path) -> None:
+    def test_get_api_key_with_auth_storage(self, tmp_path: Path) -> None:
         """Test getting API key with auth storage."""
         auth_storage = MagicMock()
         auth_storage.get_api_key = MagicMock(return_value="sk-test-key")
@@ -104,13 +103,12 @@ class TestModelRegistry:
         )
 
         model = {"provider": "anthropic", "id": "claude-opus-4-5"}
-        api_key = await registry.get_api_key(model)
+        api_key = registry.get_api_key(model)
 
         assert api_key == "sk-test-key"
         auth_storage.get_api_key.assert_called_once_with("anthropic")
 
-    @pytest.mark.asyncio
-    async def test_get_api_key_without_auth_storage(self, tmp_path: Path) -> None:
+    def test_get_api_key_without_auth_storage(self, tmp_path: Path) -> None:
         """Test getting API key without auth storage."""
         registry = ModelRegistry(
             auth_storage=None,
@@ -118,12 +116,11 @@ class TestModelRegistry:
         )
 
         model = {"provider": "anthropic", "id": "claude-opus-4-5"}
-        api_key = await registry.get_api_key(model)
+        api_key = registry.get_api_key(model)
 
         assert api_key is None
 
-    @pytest.mark.asyncio
-    async def test_get_api_key_for_provider(self, tmp_path: Path) -> None:
+    def test_get_api_key_for_provider(self, tmp_path: Path) -> None:
         """Test getting API key for provider."""
         auth_storage = MagicMock()
         auth_storage.get_api_key = MagicMock(return_value="sk-provider-key")
@@ -133,7 +130,7 @@ class TestModelRegistry:
             models_path=tmp_path / "models.json"
         )
 
-        api_key = await registry.get_api_key_for_provider("openai")
+        api_key = registry.get_api_key_for_provider("openai")
 
         assert api_key == "sk-provider-key"
         auth_storage.get_api_key.assert_called_once_with("openai")
@@ -250,8 +247,8 @@ class TestUserModels:
         model = registry.find("custom", "my-custom-model")
 
         assert model is not None
-        assert model["id"] == "my-custom-model"
-        assert model["name"] == "My Custom Model"
+        assert model.id == "my-custom-model"
+        assert model.name == "My Custom Model"
 
     def test_search_user_models(self, tmp_path: Path) -> None:
         """Test searching includes user models."""
@@ -411,7 +408,7 @@ class TestModelRegistryEdgeCases:
         # Should handle gracefully
         model = registry.find("custom", "")
         # Model won't be found due to missing id
-        assert model is None or model.get("id") == ""
+        assert model is None or model.id == ""
 
     def test_case_sensitive_search(self, tmp_path: Path) -> None:
         """Test that search is case-insensitive."""

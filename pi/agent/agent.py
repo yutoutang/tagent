@@ -23,9 +23,16 @@ from .types import (
 )
 from .agent_loop import agent_loop, agent_loop_continue
 import time
-import dataclasses
+import asyncio
 
-from ..ai import UserMessage, AssistantMessage, ToolResultMessage
+
+def _get_model_attr(model: Any, attr: str, default: Any = "") -> Any:
+    """Helper to get attribute from Model object or dict."""
+    if model is None:
+        return default
+    if isinstance(model, dict):
+        return model.get(attr, default)
+    return getattr(model, attr, default)
 
 class AgentOptions:
     """Options for creating an Agent."""
@@ -66,7 +73,7 @@ class Agent:
         if opts is None:
             opts = AgentOptions()
 
-        # Default state
+        # Default state todo 这里 state 初始化，提供一个函数来获取默认配置
         self._state: AgentState = {
             "systemPrompt": "",
             "model": {
@@ -492,9 +499,9 @@ class Agent:
             error_msg: AgentMessage = {
                 "role": "assistant",
                 "content": [{"type": "text", "text": ""}],
-                "api": model.get("api"),
-                "provider": model.get("provider"),
-                "model": model.get("id"),
+                "api": _get_model_attr(model, "api"),
+                "provider": _get_model_attr(model, "provider"),
+                "model": _get_model_attr(model, "id"),
                 "usage": {
                     "input": 0,
                     "output": 0,
@@ -556,6 +563,3 @@ class Agent:
 def _now() -> float:
     """Get current timestamp in milliseconds."""
     return time.time() * 1000
-
-
-import asyncio

@@ -17,6 +17,7 @@ from .model_registry import ModelRegistry
 from .model_resolver import find_initial_model
 from .resource_loader import DefaultResourceLoader
 from ..tools import get_builtin_tools
+from ...ai import Model
 
 
 @dataclass
@@ -26,7 +27,7 @@ class CreateAgentSessionOptions:
     agent_dir: Optional[str | Path] = None
     auth_storage: Optional[AuthStorage] = None
     model_registry: Optional[ModelRegistry] = None
-    model: Optional[dict[str, Any]] = None
+    model: Optional[Model] = None
     thinking_level: Optional[ThinkingLevel] = None
     scoped_models: Optional[List[dict[str, Any]]] = None
     tools: Optional[List[Any]] = None
@@ -120,14 +121,14 @@ async def create_agent_session(
         provider = existing_session.model["provider"]
         model_id = existing_session.model["modelId"]
         restored_model = model_registry.find(provider, model_id)
-        if restored_model and await model_registry.get_api_key(restored_model):
+        if restored_model and model_registry.get_api_key(restored_model):
             model = restored_model
         else:
             model_fallback_message = f"Could not restore model {provider}/{model_id}"
 
     # Find initial model if none set
     if not model:
-        result = await find_initial_model(
+        result = find_initial_model(
             scoped_models=options.scoped_models or [],
             is_continuing=has_existing_session,
             default_provider=settings_manager.get_default_provider(),
@@ -142,8 +143,8 @@ async def create_agent_session(
                 "Then use /model to select a model."
             )
         elif model_fallback_message:
-            provider = model.get("provider", "")
-            model_id = model.get("id", "")
+            provider = model.provider
+            model_id = model.id
             model_fallback_message += f". Using {provider}/{model_id}"
 
     thinking_level = options.thinking_level
@@ -161,7 +162,7 @@ async def create_agent_session(
         thinking_level = settings_manager.get_default_thinking_level() or DEFAULT_THINKING_LEVEL
 
     # Clamp to model capabilities
-    if not model or not model.get("reasoning"):
+    if not model or not model.reasoning:
         thinking_level = "off"
 
     # Get tools
@@ -217,9 +218,7 @@ async def create_agent_session(
             "xhigh": settings_manager.get_thinking_budgets().xhigh,
         },
         max_retry_delay_ms=settings_manager.get_retry_settings().max_delay_ms,
-        get_api_key=lambda provider: asyncio.create_task(
-            model_registry.get_api_key_for_provider(provider)
-        ).result(),
+        get_api_key=lambda provider: model_registry.get_api_key_for_provider(provider),
     )
 
     # Create agent
@@ -233,7 +232,7 @@ async def create_agent_session(
     else:
         # Save initial model and thinking level
         if model:
-            session_manager.append_model_change(model["provider"], model["id"])
+            session_manager.append_model_change(model.provider, model.id)
         session_manager.append_thinking_level_change(thinking_level)
 
     # Create agent session

@@ -7,7 +7,7 @@ from typing import Any, Optional, List
 from dataclasses import dataclass
 
 from pi.agent.types import ThinkingLevel
-from pi.ai import Model
+from pi.ai.types import Model
 from .model_registry import ModelRegistry
 
 
@@ -22,11 +22,11 @@ class ModelConfig:
 @dataclass
 class ResolveModelResult:
     """Result from resolving a model."""
-    model: dict[str, Any]
+    model: Optional[Model]
     thinking_level: ThinkingLevel
 
 
-async def find_initial_model(
+def find_initial_model(
     scoped_models: List[dict[str, Any]],
     is_continuing: bool,
     default_provider: Optional[str],
@@ -60,7 +60,7 @@ async def find_initial_model(
             model_id = scoped.get("id", "")
             if provider and model_id:
                 model = model_registry.find(provider, model_id)
-                if model and await model_registry.get_api_key(model):
+                if model and model_registry.get_api_key(model):
                     thinking = scoped.get("thinkingLevel", default_thinking_level)
                     return ResolveModelResult(
                         model=model,
@@ -70,7 +70,7 @@ async def find_initial_model(
     # Try settings default
     if default_provider and default_model_id:
         model = model_registry.find(default_provider, default_model_id)
-        if model and await model_registry.get_api_key(model):
+        if model and model_registry.get_api_key(model):
             return ResolveModelResult(
                 model=model,
                 thinking_level=default_thinking_level or "medium",
@@ -81,26 +81,26 @@ async def find_initial_model(
         # Get first available model from provider
         models = model_registry.list_models(default_provider)
         for model_info in models:
-            model_dict = model_registry.find(default_provider, model_info.id)
-            if model_dict and await model_registry.get_api_key(model_dict):
+            model_obj = model_registry.find(default_provider, model_info.id)
+            if model_obj and model_registry.get_api_key(model_obj):
                 return ResolveModelResult(
-                    model=model_dict,
+                    model=model_obj,
                     thinking_level=default_thinking_level or "medium",
                 )
 
     # Try any available model with credentials
     all_models = model_registry.list_models()
     for model_info in all_models:
-        model_dict = model_registry.find(model_info.provider, model_info.id)
-        if model_dict and await model_registry.get_api_key(model_dict):
+        model_obj = model_registry.find(model_info.provider, model_info.id)
+        if model_obj and model_registry.get_api_key(model_obj):
             return ResolveModelResult(
-                model=model_dict,
+                model=model_obj,
                 thinking_level=default_thinking_level or "medium",
             )
 
     # No model available
     return ResolveModelResult(
-        model={},
+        model=None,
         thinking_level=default_thinking_level or "medium",
     )
 

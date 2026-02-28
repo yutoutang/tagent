@@ -51,8 +51,9 @@ class PrintMode:
         # Apply CLI overrides
         if self.args.provider or self.args.model:
             # Model specification from CLI
-            provider = self.args.provider or "google"
-            model_id = self.args.model or "gemini-2.5-flash-lite-preview-06-17"
+            # todo 默认配置归一
+            provider = self.args.provider or "zai"
+            model_id = self.args.model or "glm-5"
             options.model = {
                 "provider": provider,
                 "id": model_id,

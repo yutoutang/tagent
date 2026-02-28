@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from ..config import get_models_path
 from pi.ai.models import get_all_models, get_providers, get_models
+from pi.ai.types import Model, ModelCost
 
 
 @dataclass
@@ -148,7 +149,7 @@ class ModelRegistry:
 
         return models
 
-    def find(self, provider: str, model_id: str) -> Optional[dict[str, Any]]:
+    def find(self, provider: str, model_id: str) -> Optional[Model]:
         """
         Find a model by provider and ID.
 
@@ -157,44 +158,62 @@ class ModelRegistry:
             model_id: Model ID
 
         Returns:
-            Model dict or None if not found
+            Model object or None if not found
         """
         # Check pi.ai models first
         from pi.ai.models import get_model as get_ai_model
         ai_model = get_ai_model(provider, model_id)
         if ai_model:
-            return {
-                "provider": ai_model.provider,
-                "id": ai_model.id,
-                "name": ai_model.name,
-                "api": ai_model.api,
-                "baseUrl": ai_model.baseUrl,
-                "reasoning": ai_model.reasoning,
-                "input": ai_model.input,
-                "cost": {
-                    "input": ai_model.cost.input,
-                    "output": ai_model.cost.output,
-                    "cacheRead": ai_model.cost.cacheRead,
-                    "cacheWrite": ai_model.cost.cacheWrite,
-                },
-                "contextWindow": ai_model.contextWindow,
-                "maxTokens": ai_model.maxTokens,
-            }
+            return Model(
+                id=ai_model.id,
+                name=ai_model.name,
+                api=ai_model.api,
+                provider=ai_model.provider,
+                baseUrl=ai_model.baseUrl,
+                reasoning=ai_model.reasoning,
+                input=ai_model.input,
+                cost=ModelCost(
+                    input=ai_model.cost.input,
+                    output=ai_model.cost.output,
+                    cacheRead=ai_model.cost.cacheRead,
+                    cacheWrite=ai_model.cost.cacheWrite,
+                ),
+                contextWindow=ai_model.contextWindow,
+                maxTokens=ai_model.maxTokens,
+            )
 
         # Check user models
         for model_dict in self._user_models:
             if (model_dict.get("provider") == provider and
                 model_dict.get("id") == model_id):
-                return model_dict
+                # Convert user model dict to Model object
+                cost_dict = model_dict.get("cost", {})
+                return Model(
+                    id=model_dict.get("id", ""),
+                    name=model_dict.get("name", ""),
+                    api=model_dict.get("api", ""),
+                    provider=model_dict.get("provider", ""),
+                    baseUrl=model_dict.get("baseUrl", ""),
+                    reasoning=model_dict.get("reasoning", False),
+                    input=model_dict.get("input", ["text"]),
+                    cost=ModelCost(
+                        input=cost_dict.get("input", 0.0),
+                        output=cost_dict.get("output", 0.0),
+                        cacheRead=cost_dict.get("cacheRead", 0.0),
+                        cacheWrite=cost_dict.get("cacheWrite", 0.0),
+                    ),
+                    contextWindow=model_dict.get("contextWindow", 0),
+                    maxTokens=model_dict.get("maxTokens", 0),
+                )
 
         return None
 
-    async def get_api_key(self, model: dict[str, Any]) -> Optional[str]:
+    def get_api_key(self, model: Model | dict[str, Any]) -> Optional[str]:
         """
         Get API key for a model.
 
         Args:
-            model: Model dict
+            model: Model object or dict
 
         Returns:
             API key or None if not found
@@ -202,10 +221,14 @@ class ModelRegistry:
         if not self.auth_storage:
             return None
 
-        provider = model.get("provider", "")
+        # Support both Model object and dict for backward compatibility
+        if isinstance(model, dict):
+            provider = model.get("provider", "")
+        else:
+            provider = model.provider
         return self.auth_storage.get_api_key(provider)
 
-    async def get_api_key_for_provider(self, provider: str) -> Optional[str]:
+    def get_api_key_for_provider(self, provider: str) -> Optional[str]:
         """
         Get API key for a provider.
 
@@ -220,12 +243,12 @@ class ModelRegistry:
 
         return self.auth_storage.get_api_key(provider)
 
-    def is_using_oauth(self, model: dict[str, Any]) -> bool:
+    def is_using_oauth(self, model: Model | dict[str, Any]) -> bool:
         """
         Check if a model uses OAuth authentication.
 
         Args:
-            model: Model dict
+            model: Model object or dict
 
         Returns:
             True if model uses OAuth
@@ -233,7 +256,11 @@ class ModelRegistry:
         if not self.auth_storage:
             return False
 
-        provider = model.get("provider", "")
+        # Support both Model object and dict for backward compatibility
+        if isinstance(model, dict):
+            provider = model.get("provider", "")
+        else:
+            provider = model.provider
         return self.auth_storage.get_oauth_token(provider) is not None
 
     def search(

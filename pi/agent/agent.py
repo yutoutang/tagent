@@ -34,6 +34,7 @@ def _get_model_attr(model: Any, attr: str, default: Any = "") -> Any:
         return model.get(attr, default)
     return getattr(model, attr, default)
 
+
 class AgentOptions:
     """Options for creating an Agent."""
 
@@ -442,7 +443,9 @@ class Agent:
                 )
             )
 
+            # 回收 agent loop 的 event 消息
             async for event in stream:
+                # print("in agent ", event)
                 # Update internal state based on events
                 event_type = event.get("type")
 
@@ -479,6 +482,7 @@ class Agent:
                     self._state["streamMessage"] = None
 
                 # Emit to listeners
+                # 将 event 转换为 字典，返回给上游调用放
                 self._emit(event)
 
             # Handle any remaining partial message

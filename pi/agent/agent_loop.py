@@ -85,8 +85,8 @@ def agent_loop(
         stream.push({"type": "agent_start"})
         stream.push({"type": "turn_start"})
         for prompt in prompts:
-            stream.push({"type": "message_start", "message": prompt})
-            stream.push({"type": "message_end", "message": prompt})
+            stream.push({"type": "message_start", "message": _to_dict(prompt)})
+            stream.push({"type": "message_end", "message": _to_dict(prompt)})
 
         await _run_loop(
             current_context,
@@ -189,8 +189,8 @@ async def _run_loop(
             # Process pending messages (inject before next assistant response)
             if len(pending_messages) > 0:
                 for message in pending_messages:
-                    stream.push({"type": "message_start", "message": message})
-                    stream.push({"type": "message_end", "message": message})
+                    stream.push({"type": "message_start", "message": _to_dict(message)})
+                    stream.push({"type": "message_end", "message": _to_dict(message)})
                     current_context["messages"].append(message)
                     new_messages.append(message)
                 pending_messages = []
@@ -328,8 +328,8 @@ async def _stream_assistant_response(
     partial_message: AssistantMessage | None = None
     added_partial = False
 
+    # 回收 llm 返回的消息
     async for event in response:
-        print(event)
         event_type = event.get("type")
 
         if event_type == "start":
@@ -468,8 +468,8 @@ async def _execute_tool_calls(
         )
 
         results.append(tool_result_message)
-        stream.push({"type": "message_start", "message": tool_result_message})
-        stream.push({"type": "message_end", "message": tool_result_message})
+        stream.push({"type": "message_start", "message": _to_dict(tool_result_message)})
+        stream.push({"type": "message_end", "message": _to_dict(tool_result_message)})
 
         # Check for steering messages - skip remaining tools if user interrupted
         if get_steering_messages:
@@ -530,8 +530,8 @@ def _skip_tool_call(
         timestamp=int(_now()),
     )
 
-    stream.push({"type": "message_start", "message": tool_result_message})
-    stream.push({"type": "message_end", "message": tool_result_message})
+    stream.push({"type": "message_start", "message": _to_dict(tool_result_message)})
+    stream.push({"type": "message_end", "message": _to_dict(tool_result_message)})
 
     return tool_result_message
 

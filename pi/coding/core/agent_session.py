@@ -345,6 +345,7 @@ class AgentSession:
                     ))
                 elif isinstance(img, ImageContent):
                     user_content.append(img)
+        # todo 重新审视 UserMessage 是否可以需要定义
         messages.append(UserMessage(
             role="user",
             content=user_content,
@@ -380,7 +381,7 @@ class AgentSession:
             else:
                 self.agent.set_system_prompt(self._base_system_prompt)
 
-        # Send to agent
+        # Send to agent 这里仅发送，但是异步没有回收
         await self.agent.prompt(messages)
         await self._wait_for_retry()
 
@@ -726,7 +727,7 @@ class AgentSession:
                 elif message_text in self._follow_up_messages:
                     self._follow_up_messages.remove(message_text)
 
-        # Emit to all listeners
+        # Emit to all listeners 从 agent 中来的事件消息
         for listener in self._event_listeners:
             listener(event)
 
@@ -754,10 +755,6 @@ class AgentSession:
                 self._event_listeners.remove(callback)
 
         return unsubscribe
-
-    # =========================================================================
-    # Session Control (Phase 1)
-    # =========================================================================
 
     async def new_session(
         self,

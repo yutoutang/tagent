@@ -249,4 +249,5 @@ __all__ = [
     "create_user_message",
     "create_user_message_from_content",
     "default_convert_to_llm",
+    "get_msg_attr"
 ]

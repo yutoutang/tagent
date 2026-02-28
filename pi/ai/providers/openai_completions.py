@@ -334,6 +334,7 @@ def stream_openai_completions(
 
             response = client.chat.completions.create(**params)
             for chunk in response:
+                # 适配 reasoning_content
                 if chunk.usage:
                     cached_tokens = getattr(chunk.usage.prompt_tokens_details, 'cached_tokens', 0) or 0
                     reasoning_tokens = getattr(chunk.usage.completion_tokens_details, 'reasoning_tokens', 0) or 0

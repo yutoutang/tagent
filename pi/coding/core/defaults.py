@@ -3,13 +3,29 @@ Default values and constants for pi-coding.
 
 Converted from TypeScript defaults.ts
 """
+from pathlib import Path
+from typing import Optional
+
 from pi.agent.types import ThinkingLevel
 
 # Default thinking level for models that support reasoning
 DEFAULT_THINKING_LEVEL: ThinkingLevel = "medium"
 
-# Default system prompt for coding assistant
-DEFAULT_SYSTEM_PROMPT = """You are an AI coding assistant that helps users with software development tasks.
+
+def _load_default_system_prompt() -> str:
+    """Load the default system prompt from the prompts directory."""
+    from ..resources import PROMPTS_DIR
+
+    prompt_path = PROMPTS_DIR / "coding-assistant.md"
+
+    if prompt_path.exists():
+        try:
+            return prompt_path.read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+    # Fallback prompt if file not found
+    return """You are an AI coding assistant that helps users with software development tasks.
 
 ## Core Capabilities
 - **Read**: Read file contents to understand codebases
@@ -39,6 +55,44 @@ DEFAULT_SYSTEM_PROMPT = """You are an AI coding assistant that helps users with 
 - Highlight important information
 - Provide context for your recommendations
 """
+
+
+# Cached default system prompt
+_DEFAULT_SYSTEM_PROMPT: Optional[str] = None
+
+
+def get_default_system_prompt() -> str:
+    """
+    Get the default system prompt.
+
+    Returns:
+        Default system prompt string
+    """
+    global _DEFAULT_SYSTEM_PROMPT
+
+    if _DEFAULT_SYSTEM_PROMPT is None:
+        _DEFAULT_SYSTEM_PROMPT = _load_default_system_prompt()
+
+    return _DEFAULT_SYSTEM_PROMPT
+
+
+# For backwards compatibility - this will be the actual string value
+# We load it lazily on first access via the function
+class _DefaultSystemPrompt:
+    """Lazy loader for DEFAULT_SYSTEM_PROMPT."""
+
+    def __str__(self) -> str:
+        return get_default_system_prompt()
+
+    def __repr__(self) -> str:
+        return repr(get_default_system_prompt())
+
+    # Allow direct access to the string content
+    def __getattr__(self, name):
+        return getattr(get_default_system_prompt(), name)
+
+
+DEFAULT_SYSTEM_PROMPT = _DefaultSystemPrompt()
 
 
 def get_default_config_dir() -> str:
@@ -83,6 +137,7 @@ def get_default_settings() -> dict:
 __all__ = [
     "DEFAULT_THINKING_LEVEL",
     "DEFAULT_SYSTEM_PROMPT",
+    "get_default_system_prompt",
     "get_default_config_dir",
     "get_default_settings",
 ]

@@ -11,12 +11,12 @@ from .settings_manager import SettingsManager, Settings
 from .auth_storage import AuthStorage
 from .model_registry import ModelRegistry, ModelInfo
 from .model_resolver import resolve_model, ModelConfig
-from .defaults import get_default_config_dir, get_default_settings, DEFAULT_SYSTEM_PROMPT
+from .defaults import get_default_config_dir, get_default_settings, DEFAULT_SYSTEM_PROMPT, get_default_system_prompt
 from .messages import create_user_message, dicts_to_agent_messages
 from .bash_executor import BashExecutor
 from .event_bus import EventBus
-from .resource_loader import ResourceLoader
-from .prompt_templates import PromptTemplates
+from .resource_loader import ResourceLoader, DefaultResourceLoader
+from .prompt_templates import PromptTemplates, PromptTemplate, get_prompt_templates, load_prompt_template
 from .system_prompt import SystemPromptBuilder
 from ..tools import get_builtin_tools
 
@@ -43,6 +43,7 @@ __all__ = [
     "get_default_config_dir",
     "get_default_settings",
     "DEFAULT_SYSTEM_PROMPT",
+    "get_default_system_prompt",
     # Messages
     "create_user_message",
     "dicts_to_agent_messages",
@@ -52,8 +53,12 @@ __all__ = [
     "EventBus",
     # Resources
     "ResourceLoader",
+    "DefaultResourceLoader",
     # Prompts
     "PromptTemplates",
+    "PromptTemplate",
+    "get_prompt_templates",
+    "load_prompt_template",
     "SystemPromptBuilder",
     # Tools
     "get_builtin_tools",

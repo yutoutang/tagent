@@ -170,6 +170,9 @@ class AgentSession:
         # Subscribe to agent events
         self._subscribe_to_agent()
 
+        # Build runtime: load tools and set initial active tools
+        self._build_runtime()
+
     # =========================================================================
     # Properties
     # =========================================================================
@@ -715,6 +718,47 @@ class AgentSession:
         if self._unsubscribe_agent is None:
             self._unsubscribe_agent = self.agent.subscribe(self._handle_agent_event)
 
+    def _build_runtime(self) -> None:
+        """
+        Build the runtime environment including tools.
+
+        This method:
+        1. Loads all built-in tools into the registry
+        2. Sets up initial active tools on the agent
+        3. Rebuilds the system prompt with tool information
+        """
+        # Get all built-in tools
+        all_tools = get_builtin_tools()
+
+        # Build base tool registry (all available tools)
+        self._base_tool_registry = {}
+        for tool in all_tools:
+            # Tools need cwd set
+            if hasattr(tool, "cwd"):
+                tool.cwd = self.cwd
+            self._base_tool_registry[tool.name] = tool
+
+        # Copy to main tool registry
+        self._tool_registry = dict(self._base_tool_registry)
+
+        # Determine active tools
+        default_active_names = ["read", "bash", "edit", "write"]
+        active_tool_names = self.initial_active_tool_names or default_active_names
+
+        # Get active tools
+        active_tools = []
+        valid_tool_names = []
+        for name in active_tool_names:
+            if name in self._tool_registry:
+                active_tools.append(self._tool_registry[name])
+                valid_tool_names.append(name)
+
+        # Set tools on agent
+        self.agent.set_tools(active_tools)
+
+        # Rebuild system prompt with tool info
+        self._rebuild_system_prompt(valid_tool_names)
+
     def _handle_agent_event(self, event: Any) -> None:
         """Handle agent events and emit to listeners."""
         # When a user message starts, check if it's from either queue and remove it
@@ -1158,10 +1202,6 @@ class AgentSession:
 
         return available_levels[0] if available_levels else "off"
 
-    # =========================================================================
-    # Tool Management (Phase 3)
-    # =========================================================================
-
     def get_all_tools(self) -> list[dict[str, Any]]:
         """Get all configured tools with name, description, and parameters."""
         return [
@@ -1176,7 +1216,13 @@ class AgentSession:
     def get_active_tool_names(self) -> list[str]:
         """Get the names of currently active tools."""
         tools = self.state.get("tools", [])
-        return [t.get("name", "") for t in tools if isinstance(t, dict)]
+        result = []
+        for t in tools:
+            if isinstance(t, dict):
+                result.append(t.get("name", ""))
+            elif hasattr(t, "name"):
+                result.append(t.name)
+        return result
 
     def set_active_tools_by_name(self, tool_names: list[str]) -> None:
         """Set active tools by name."""
@@ -1193,13 +1239,45 @@ class AgentSession:
         self._rebuild_system_prompt(valid_tool_names)
 
     def _rebuild_system_prompt(self, tool_names: list[str]) -> None:
-        """Rebuild the system prompt with the given tool names."""
-        # TODO: Implement system prompt rebuilding
-        pass
+        """
+        Rebuild the system prompt with the given tool names.
 
-    # =========================================================================
-    # Queue & Message Management (Phase 5)
-    # =========================================================================
+        This method:
+        1. Loads the base system prompt
+        2. Optionally adds tool descriptions
+        3. Sets the system prompt on the agent
+        """
+        from .defaults import get_default_system_prompt
+
+        # Get base system prompt
+        base_prompt = get_default_system_prompt()
+
+        # Get valid tool names (only base tools, not extension tools)
+        valid_tool_names = [
+            name for name in tool_names
+            if name in self._base_tool_registry
+        ]
+
+        # Build tool descriptions section if we have tools
+        if valid_tool_names:
+            tool_descriptions = []
+            tool_descriptions.append("\n## Available Tools\n")
+            tool_descriptions.append("You have access to the following tools:\n")
+
+            for name in valid_tool_names:
+                tool = self._base_tool_registry.get(name)
+                if tool:
+                    desc = getattr(tool, "description", "No description")
+                    tool_descriptions.append(f"- **{name}**: {desc}\n")
+
+            # Append tool descriptions to base prompt
+            base_prompt = base_prompt.rstrip() + "\n" + "".join(tool_descriptions)
+
+        # Store as base system prompt
+        self._base_system_prompt = base_prompt
+
+        # Set on agent
+        self.agent.set_system_prompt(base_prompt)
 
     def clear_queue(self) -> dict[str, list[str]]:
         """Clear all queued messages and return them."""
@@ -1266,10 +1344,6 @@ class AgentSession:
             streaming_behavior=options.get("deliver_as"),
             source="extension",
         ))
-
-    # =========================================================================
-    # Auto-Retry Logic (Phase 7)
-    # =========================================================================
 
     def _is_retryable_error(self, message: dict) -> bool:
         """Check if error is retryable."""
@@ -1349,10 +1423,6 @@ class AgentSession:
         if self._retry_promise and not self._retry_promise.done():
             self._retry_promise.set_result(None)
         self._retry_promise = None
-
-    # =========================================================================
-    # Compaction System (Phase 8)
-    # =========================================================================
 
     async def compact(self, custom_instructions: Optional[str] = None) -> dict[str, Any]:
         """Manually compact session context."""
@@ -1464,10 +1534,6 @@ class AgentSession:
             setattr(self.settings_manager._settings, "autoCompaction", enabled)
             self.settings_manager._save_global_settings()
 
-    # =========================================================================
-    # Tree Navigation & Branching (Phase 9)
-    # =========================================================================
-
     async def navigate_tree(
         self,
         target_id: str,
@@ -1560,10 +1626,6 @@ class AgentSession:
 
         return result
 
-    # =========================================================================
-    # HTML Export (Phase 11)
-    # =========================================================================
-
     async def export_to_html(self, output_path: Optional[str] = None) -> str:
         """Export session to HTML."""
         from .export_html import export_session_to_html, HtmlExportConfig
@@ -1581,10 +1643,6 @@ class AgentSession:
         )
 
         return output_file
-
-    # =========================================================================
-    # Extension System Integration (Phase 12)
-    # =========================================================================
 
     async def bind_extensions(
         self,

@@ -78,7 +78,7 @@ async def create_agent_session(
         ```
     """
     from ..config import get_agent_dir
-    from ..core.defaults import DEFAULT_SYSTEM_PROMPT, DEFAULT_THINKING_LEVEL
+    from ..core.defaults import DEFAULT_SYSTEM_PROMPT, DEFAULT_THINKING_LEVEL, get_default_system_prompt
     from ..core.messages import convertToLlm
     from ..core.timings import time
     import asyncio
@@ -199,7 +199,7 @@ async def create_agent_session(
     from pi.agent import AgentOptions
     agent_opts = AgentOptions(
         initial_state={
-            "systemPrompt": "",
+            "systemPrompt": get_default_system_prompt(),
             "model": model,
             "thinkingLevel": thinking_level,
             "tools": [],

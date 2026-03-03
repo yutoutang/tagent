@@ -18,6 +18,18 @@ from .event_bus import EventBus
 from .resource_loader import ResourceLoader, DefaultResourceLoader
 from .prompt_templates import PromptTemplates, PromptTemplate, get_prompt_templates, load_prompt_template
 from .system_prompt import SystemPromptBuilder
+from .skills import (
+    Skill,
+    SkillFrontmatter,
+    LoadSkillsResult,
+    LoadSkillsOptions,
+    load_skills,
+    load_skills_from_dir,
+    format_skills_for_prompt,
+    validate_name,
+    validate_description,
+)
+from .diagnostics import ResourceDiagnostic, ResourceCollision
 from ..tools import get_builtin_tools
 
 __all__ = [
@@ -60,6 +72,19 @@ __all__ = [
     "get_prompt_templates",
     "load_prompt_template",
     "SystemPromptBuilder",
+    # Skills
+    "Skill",
+    "SkillFrontmatter",
+    "LoadSkillsResult",
+    "LoadSkillsOptions",
+    "load_skills",
+    "load_skills_from_dir",
+    "format_skills_for_prompt",
+    "validate_name",
+    "validate_description",
+    # Diagnostics
+    "ResourceDiagnostic",
+    "ResourceCollision",
     # Tools
     "get_builtin_tools",
 ]

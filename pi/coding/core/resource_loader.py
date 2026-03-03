@@ -2,11 +2,12 @@
 
 Converted from TypeScript core/resource-loader.ts
 """
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from pathlib import Path
 from dataclasses import dataclass, field
 
 from .prompt_templates import PromptTemplates, PromptTemplate
+from .skills import load_skills, LoadSkillsResult, LoadSkillsOptions
 
 
 @dataclass
@@ -52,6 +53,7 @@ class ResourceLoader:
 
         self._extensions_result = LoadExtensionsResult()
         self._prompt_templates: PromptTemplates = PromptTemplates()
+        self._skills_result: Optional[LoadSkillsResult] = None
         self._loaded = False
 
     async def reload(self) -> None:
@@ -59,9 +61,11 @@ class ResourceLoader:
         # Load prompt templates from built-in and user directories
         self._load_prompt_templates()
 
+        # Load skills from configured directories
+        self._load_skills()
+
         # TODO: Implement other resource loading
         # - Load extensions from settings and project-local dirs
-        # - Load skills
         # - Load themes
 
         self._loaded = True
@@ -87,6 +91,21 @@ class ResourceLoader:
 
         # Load all templates
         self._prompt_templates.load_templates()
+
+    def _load_skills(self) -> None:
+        """Load skills from configured directories."""
+        options = LoadSkillsOptions(
+            cwd=self.cwd,
+            agent_dir=self.agent_dir,
+            skill_paths=self._get_skill_paths(),
+            include_defaults=True,
+        )
+        self._skills_result = load_skills(options)
+
+    def _get_skill_paths(self) -> List[str]:
+        """Get additional skill paths from settings."""
+        # TODO: Read from settings manager if available
+        return []
 
     def get_extensions(self) -> LoadExtensionsResult:
         """
@@ -119,6 +138,43 @@ class ResourceLoader:
             PromptTemplate or None if not found
         """
         return self.get_prompt_templates().get_template(name)
+
+    def get_skills(self) -> Dict[str, Any]:
+        """
+        Get loaded skills and diagnostics.
+
+        Returns:
+            Dict with 'skills' and 'diagnostics' keys.
+            Each skill is a dict with keys: name, description, filePath,
+            baseDir, source, disableModelInvocation
+        """
+        if self._skills_result is None:
+            self._load_skills()
+
+        if self._skills_result is None:
+            return {"skills": [], "diagnostics": []}
+
+        return {
+            "skills": [
+                {
+                    "name": s.name,
+                    "description": s.description,
+                    "filePath": s.file_path,
+                    "baseDir": s.base_dir,
+                    "source": s.source,
+                    "disableModelInvocation": s.disable_model_invocation,
+                }
+                for s in self._skills_result.skills
+            ],
+            "diagnostics": [
+                {
+                    "type": d.type,
+                    "message": d.message,
+                    "path": d.path,
+                }
+                for d in self._skills_result.diagnostics
+            ],
+        }
 
 
 class DefaultResourceLoader(ResourceLoader):
